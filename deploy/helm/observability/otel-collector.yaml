@@ -1,0 +1,18 @@
+mode: daemonset
+image: { repository: otel/opentelemetry-collector-contrib, tag: 0.161.0 }
+presets:
+  logsCollection: { enabled: true, includeCollectorLogs: false }   # container logs from the node → Loki
+config:
+  receivers:
+    otlp: { protocols: { grpc: { endpoint: 0.0.0.0:4317 }, http: { endpoint: 0.0.0.0:4318 } } }
+  processors:
+    batch: {}
+    memory_limiter: { check_interval: 5s, limit_mib: 200 }
+  exporters:
+    otlp/tempo: { endpoint: tempo.observability:4317, tls: { insecure: true } }
+    otlphttp/loki: { endpoint: http://loki-gateway.observability/otlp }
+  service:
+    pipelines:
+      traces: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlp/tempo] }
+      logs: { receivers: [otlp, filelog], processors: [memory_limiter, batch], exporters: [otlphttp/loki] }
+resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 256Mi } }

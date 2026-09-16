@@ -1,0 +1,53 @@
+{{- if .Values.ingress.enabled }}
+# One host, three paths: / is the SPA, /api and /actuator-free API under /api, /auth is Keycloak.
+# Only /api/** of the API is exposed; /actuator stays inside the cluster.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  labels: {{- include "assetcare.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts: [{{ .Values.global.host | quote }}]
+      secretName: {{ .Release.Name }}-tls
+  rules:
+    - host: {{ .Values.global.host | quote }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: {{ .Release.Name }}-api, port: { number: 8080 } } }
+          - path: /v3/api-docs
+            pathType: Prefix
+            backend: { service: { name: {{ .Release.Name }}-api, port: { number: 8080 } } }
+          - path: /swagger-ui
+            pathType: Prefix
+            backend: { service: { name: {{ .Release.Name }}-api, port: { number: 8080 } } }
+          {{- if .Values.keycloak.enabled }}
+          - path: /auth
+            pathType: Prefix
+            backend: { service: { name: {{ .Release.Name }}-keycloak, port: { number: 8080 } } }
+          {{- end }}
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: {{ .Release.Name }}-frontend, port: { number: 8080 } } }
+{{- if .Values.ingress.rateLimit.enabled }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: ratelimit
+  labels: {{- include "assetcare.labels" . | nindent 4 }}
+spec:
+  rateLimit:
+    average: {{ .Values.ingress.rateLimit.average }}
+    burst: {{ .Values.ingress.rateLimit.burst }}
+{{- end }}
+{{- end }}

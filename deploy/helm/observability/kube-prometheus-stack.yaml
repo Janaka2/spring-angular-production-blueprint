@@ -1,0 +1,27 @@
+# kube-prometheus-stack: Prometheus, Alertmanager, Grafana, kube-state-metrics, node-exporter. Sized for one small node.
+prometheus:
+  prometheusSpec:
+    retention: 3d
+    resources: { requests: { cpu: 200m, memory: 512Mi }, limits: { memory: 1Gi } }
+    serviceMonitorSelectorNilUsesHelmValues: false   # pick up the assetcare ServiceMonitor
+    ruleSelectorNilUsesHelmValues: false
+alertmanager:
+  alertmanagerSpec:
+    resources: { requests: { cpu: 20m, memory: 64Mi } }
+grafana:
+  adminPassword: CHANGE-ME
+  resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 256Mi } }
+  additionalDataSources:
+    - { name: Loki, type: loki, uid: loki, url: http://loki-gateway.observability }
+    - { name: Tempo, type: tempo, uid: tempo, url: http://tempo.observability:3200 }
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers: [{ name: assetcare, folder: AssetCare, type: file, options: { path: /var/lib/grafana/dashboards/assetcare } }]
+  dashboardsConfigMaps: { assetcare: assetcare-dashboards }   # kubectl create configmap assetcare-dashboards --from-file=observability/grafana/dashboards/
+additionalPrometheusRulesMap:
+  assetcare:
+    groups: []   # paste the groups from observability/prometheus/rules.yml, or create a PrometheusRule from that file
+kubeEtcd: { enabled: false }     # K3s: no separate etcd
+kubeControllerManager: { enabled: false }
+kubeScheduler: { enabled: false }

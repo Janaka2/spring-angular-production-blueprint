@@ -1,0 +1,15 @@
+AssetCare {{ .Chart.AppVersion }} deployed as release {{ .Release.Name }}.
+
+  SPA        https://{{ .Values.global.host }}/
+  API        https://{{ .Values.global.host }}/api/v1   (OpenAPI: /swagger-ui.html)
+  Keycloak   {{ include "assetcare.issuer" . }}
+
+Point the DNS A record for {{ .Values.global.host }} at the node's public IP; cert-manager then issues the certificate
+through the cluster issuer "{{ .Values.ingress.clusterIssuer }}" (deploy/k3s/cluster-issuer.yaml).
+
+Smoke test:  scripts/smoke-test.sh https://{{ .Values.global.host }}/api
+Backups:     {{ if .Values.backup.enabled }}CronJob {{ .Release.Name }}-backup, schedule "{{ .Values.backup.schedule }}"{{ else }}disabled{{ end }}
+{{- if not .Values.api.existingSecret }}
+
+WARNING: secrets were created from chart values (development defaults). For anything but a lab, set api.existingSecret.
+{{- end }}

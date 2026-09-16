@@ -1,0 +1,111 @@
+# AssetCare Helm values. The defaults are the free reference deployment (one K3s node). Everything an enterprise
+# replaces is a value: managed database (postgres.enabled=false + externalDatabase), external Keycloak, object storage,
+# secrets from a vault via existingSecret names, and resource sizes.
+
+global:
+  host: assetcare.example.com          # the public hostname; TLS is issued for it by cert-manager
+  imagePullSecrets: []
+
+image:
+  registry: ghcr.io/janaka2/spring-angular-production-blueprint
+  tag: "1.0.0"                          # never "latest"; CI publishes tags and digests
+  pullPolicy: IfNotPresent
+
+api:
+  replicaCount: 1
+  image: assetcare-api
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "1", memory: 1Gi }
+  env:
+    ASSETCARE_DB_POOL_SIZE: "10"
+    ASSETCARE_TRACE_SAMPLING: "0.2"      # 20% of requests traced in production; 1.0 locally
+    ASSETCARE_LOG_FORMAT: ecs
+  # secret with keys ASSETCARE_DB_PASSWORD, ASSETCARE_S3_ACCESS_KEY, ASSETCARE_S3_SECRET_KEY
+  existingSecret: ""                     # empty: the chart creates one from secrets.* below (development only)
+  autoscaling:
+    enabled: false                       # one node: scaling pods does not add capacity. Enable on a real cluster.
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+frontend:
+  replicaCount: 1
+  image: assetcare-frontend
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+ingress:
+  enabled: true
+  className: traefik
+  clusterIssuer: letsencrypt-prod        # created by deploy/k3s/cluster-issuer.yaml
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: assetcare-ratelimit@kubernetescrd
+  rateLimit:
+    enabled: true
+    average: 50                          # requests per second per client IP at the edge
+    burst: 100
+
+postgres:
+  enabled: true                          # in-cluster PostgreSQL for the reference deployment (PRODUCTION-GAPS.md)
+  image: postgres:18.6-alpine3.24
+  database: assetcare
+  username: assetcare
+  storage: 10Gi
+  storageClass: ""                       # K3s: local-path
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "1", memory: 1Gi }
+externalDatabase:
+  url: ""                                # jdbc:postgresql://managed-host:5432/assetcare when postgres.enabled=false
+  username: ""
+
+keycloak:
+  enabled: true
+  image: quay.io/keycloak/keycloak:26.7.4
+  # the realm export from deploy/docker/keycloak is imported on first start; production replaces it with the real one
+  importRealm: true
+  adminUser: admin
+  resources:
+    requests: { cpu: 250m, memory: 768Mi }
+    limits: { cpu: "1", memory: 1.5Gi }
+  storage: 2Gi                           # dev-mode H2 on a volume; production: KC_DB=postgres (see values comment in the template)
+externalKeycloak:
+  issuer: ""                             # https://idp.example.com/realms/assetcare when keycloak.enabled=false
+
+minio:
+  enabled: true
+  image: minio/minio:RELEASE.2025-10-15T17-29-55Z
+  bucket: assetcare-attachments
+  storage: 20Gi
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+externalObjectStorage:
+  endpoint: ""                           # https://<namespace>.compat.objectstorage.eu-zurich-1.oraclecloud.com when minio.enabled=false
+  region: eu-zurich-1
+  bucket: ""
+
+# DEVELOPMENT ONLY defaults. Production sets api.existingSecret (and the Keycloak/MinIO/Postgres secrets) from a vault.
+secrets:
+  dbPassword: assetcare-dev-password
+  keycloakAdminPassword: admin-dev-password
+  minioRootUser: assetcare
+  minioRootPassword: assetcare-dev-password
+
+backup:
+  enabled: true
+  schedule: "30 2 * * *"                 # nightly 02:30 UTC
+  keep: 14
+  storage: 5Gi
+  s3Bucket: ""                           # upload dumps to object storage when set
+  s3Endpoint: ""
+
+observability:
+  enabled: false                         # the observability profile: see deploy/helm/observability/ (upstream charts)
+  serviceMonitor: true                   # ServiceMonitor for the API when kube-prometheus-stack is installed
+
+podSecurity:
+  runAsNonRoot: true
+  seccompProfile: RuntimeDefault

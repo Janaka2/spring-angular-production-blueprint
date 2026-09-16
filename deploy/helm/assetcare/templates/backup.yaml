@@ -1,0 +1,49 @@
+{{- if and .Values.backup.enabled .Values.postgres.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-backups
+  labels: {{- include "assetcare.component" (dict "root" . "component" "backup") | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: {{ .Values.backup.storage }} } }
+---
+# Nightly pg_dump, compressed and checksummed, retained on the volume; optionally copied to object storage.
+# Restore: docs/operations/BACKUP-RESTORE.md (a Job that runs scripts/restore.sh against the service).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-backup
+  labels: {{- include "assetcare.component" (dict "root" . "component" "backup") | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext: { runAsNonRoot: true, runAsUser: 70, fsGroup: 70, seccompProfile: { type: RuntimeDefault } }
+          containers:
+            - name: backup
+              image: {{ .Values.postgres.image }}
+              env:
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: {{ include "assetcare.apiSecret" . }}, key: POSTGRES_PASSWORD } }
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  STAMP=$(date -u +%Y%m%d-%H%M%S); FILE=/backups/assetcare-$STAMP.sql.gz
+                  pg_dump --no-owner --no-privileges -h {{ .Release.Name }}-postgres -U {{ .Values.postgres.username }} {{ .Values.postgres.database }} | gzip -9 > "$FILE"
+                  sha256sum "$FILE" > "$FILE.sha256"
+                  echo "backup written: $FILE ($(du -h "$FILE" | cut -f1))"
+                  ls -1t /backups/assetcare-*.sql.gz | tail -n +{{ add .Values.backup.keep 1 }} | while read -r old; do rm -f "$old" "$old.sha256"; echo "removed $old"; done
+              volumeMounts: [{ name: backups, mountPath: /backups }]
+          volumes:
+            - name: backups
+              persistentVolumeClaim: { claimName: {{ .Release.Name }}-backups }
+{{- end }}

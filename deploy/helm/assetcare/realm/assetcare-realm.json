@@ -1,0 +1,165 @@
+{
+  "realm": "assetcare",
+  "displayName": "AssetCare (development realm)",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      {
+        "name": "USER",
+        "description": "Manages their own assets"
+      },
+      {
+        "name": "ADMIN",
+        "description": "Manages configuration; can restore and hard-delete archived assets"
+      },
+      {
+        "name": "AUDITOR",
+        "description": "Reads all assets and audit history; cannot modify business data"
+      }
+    ]
+  },
+  "defaultRoles": [
+    "USER"
+  ],
+  "clients": [
+    {
+      "clientId": "assetcare-spa",
+      "name": "AssetCare Angular SPA",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "baseUrl": "/",
+      "redirectUris": [
+        "https://assetcare.example.com/*",
+        "http://localhost:4200/*"
+      ],
+      "webOrigins": [
+        "https://assetcare.example.com",
+        "http://localhost:4200"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://assetcare.example.com/*##http://localhost:4200/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience assetcare-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "assetcare-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "assetcare-dev-cli",
+      "name": "DEVELOPMENT ONLY: password grant for API tests and k6",
+      "description": "Direct access grants are disabled in production realms. This client exists so scripts can obtain a token without a browser.",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "audience assetcare-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "assetcare-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "email": "alice@example.com",
+      "firstName": "Alice",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "alice-dev-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "USER"
+      ],
+      "id": "10000000-0000-0000-0000-000000000001"
+    },
+    {
+      "username": "bob",
+      "email": "bob@example.com",
+      "firstName": "Bob",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "bob-dev-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "USER"
+      ],
+      "id": "10000000-0000-0000-0000-000000000002"
+    },
+    {
+      "username": "admin",
+      "email": "admin@example.com",
+      "firstName": "Ada",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin-dev-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "USER",
+        "ADMIN"
+      ],
+      "id": "10000000-0000-0000-0000-000000000003"
+    },
+    {
+      "username": "audrey",
+      "email": "audrey@example.com",
+      "firstName": "Audrey",
+      "lastName": "Auditor",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "audrey-dev-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "AUDITOR"
+      ],
+      "id": "10000000-0000-0000-0000-000000000004"
+    }
+  ]
+}

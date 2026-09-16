@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-frontend
+  labels: {{- include "assetcare.component" (dict "root" . "component" "frontend") | nindent 4 }}
+data:
+  API_URL: "https://{{ .Values.global.host }}"          # the API is mounted under /api on the same host
+  OIDC_ISSUER: {{ include "assetcare.issuer" . | quote }}
+  OIDC_CLIENT_ID: assetcare-spa
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-frontend
+  labels: {{- include "assetcare.component" (dict "root" . "component" "frontend") | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  selector:
+    matchLabels: {{- include "assetcare.selector" (dict "root" . "component" "frontend") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "assetcare.selector" (dict "root" . "component" "frontend") | nindent 8 }}
+      annotations:
+        checksum/config: {{ (list .Values.global.host (include "assetcare.issuer" .)) | join "|" | sha256sum | trunc 16 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {{- include "assetcare.securityContext" . | nindent 8 }}
+      containers:
+        - name: frontend
+          image: "{{ .Values.image.registry }}/{{ .Values.frontend.image }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- include "assetcare.containerSecurity" . | nindent 12 }}
+          ports: [{ name: http, containerPort: 8080 }]
+          envFrom: [{ configMapRef: { name: {{ .Release.Name }}-frontend } }]
+          resources: {{- toYaml .Values.frontend.resources | nindent 12 }}
+          livenessProbe: { httpGet: { path: /healthz, port: http }, periodSeconds: 10 }
+          readinessProbe: { httpGet: { path: /healthz, port: http }, periodSeconds: 5 }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: cache, mountPath: /var/cache/nginx }
+      volumes:
+        - { name: tmp, emptyDir: {} }
+        - { name: cache, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-frontend
+  labels: {{- include "assetcare.component" (dict "root" . "component" "frontend") | nindent 4 }}
+spec:
+  selector: {{- include "assetcare.selector" (dict "root" . "component" "frontend") | nindent 4 }}
+  ports: [{ name: http, port: 8080, targetPort: http }]

@@ -1,0 +1,77 @@
+{{- if .Values.minio.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-minio
+  labels: {{- include "assetcare.component" (dict "root" . "component" "minio") | nindent 4 }}
+spec:
+  selector: {{- include "assetcare.selector" (dict "root" . "component" "minio") | nindent 4 }}
+  ports: [{ name: s3, port: 9000, targetPort: s3 }]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-minio
+  labels: {{- include "assetcare.component" (dict "root" . "component" "minio") | nindent 4 }}
+spec:
+  serviceName: {{ .Release.Name }}-minio
+  replicas: 1
+  selector:
+    matchLabels: {{- include "assetcare.selector" (dict "root" . "component" "minio") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "assetcare.selector" (dict "root" . "component" "minio") | nindent 8 }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: minio
+          image: {{ .Values.minio.image }}
+          args: ["server", "/data"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom: { secretKeyRef: { name: {{ include "assetcare.apiSecret" . }}, key: MINIO_ROOT_USER } }
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "assetcare.apiSecret" . }}, key: MINIO_ROOT_PASSWORD } }
+          ports: [{ name: s3, containerPort: 9000 }]
+          resources: {{- toYaml .Values.minio.resources | nindent 12 }}
+          readinessProbe: { httpGet: { path: /minio/health/ready, port: s3 }, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /minio/health/live, port: s3 }, periodSeconds: 20 }
+          volumeMounts: [{ name: data, mountPath: /data }]
+      initContainers: []
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: {{ .Values.minio.storage }} } }
+---
+# creates the bucket after MinIO is up (idempotent); re-runs on every upgrade
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-minio-init
+  labels: {{- include "assetcare.component" (dict "root" . "component" "minio") | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext: { runAsNonRoot: true, runAsUser: 1000, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: mc
+          image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom: { secretKeyRef: { name: {{ include "assetcare.apiSecret" . }}, key: MINIO_ROOT_USER } }
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "assetcare.apiSecret" . }}, key: MINIO_ROOT_PASSWORD } }
+          command: ["/bin/sh", "-c"]
+          args:
+            - mc alias set local http://{{ .Release.Name }}-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" && mc mb --ignore-existing local/{{ .Values.minio.bucket }}
+{{- end }}

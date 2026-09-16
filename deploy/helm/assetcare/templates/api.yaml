@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-api
+  labels: {{- include "assetcare.component" (dict "root" . "component" "api") | nindent 4 }}
+data:
+  ASSETCARE_DB_URL: {{ include "assetcare.dbUrl" . | quote }}
+  ASSETCARE_DB_USERNAME: {{ include "assetcare.dbUser" . | quote }}
+  ASSETCARE_OIDC_ISSUER: {{ include "assetcare.issuer" . | quote }}
+  ASSETCARE_CORS_ORIGINS: "https://{{ .Values.global.host }}"
+  ASSETCARE_STORAGE_TYPE: s3
+  ASSETCARE_S3_ENDPOINT: {{ include "assetcare.s3Endpoint" . | quote }}
+  ASSETCARE_S3_REGION: {{ .Values.externalObjectStorage.region | quote }}
+  ASSETCARE_S3_BUCKET: {{ include "assetcare.s3Bucket" . | quote }}
+  ASSETCARE_DEMO_DATA: "false"
+  ASSETCARE_LIQUIBASE_CONTEXTS: prod
+  SERVER_FORWARD_HEADERS_STRATEGY: framework
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://{{ .Release.Name }}-otel-collector:4318/v1/traces"
+  {{- range $k, $v := .Values.api.env }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  labels: {{- include "assetcare.component" (dict "root" . "component" "api") | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }   # never below capacity during a rollout
+  selector:
+    matchLabels: {{- include "assetcare.selector" (dict "root" . "component" "api") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "assetcare.selector" (dict "root" . "component" "api") | nindent 8 }}
+      annotations:
+        checksum/config: {{ (list (include "assetcare.dbUrl" .) (include "assetcare.issuer" .) (include "assetcare.s3Endpoint" .) (toYaml .Values.api.env)) | join "|" | sha256sum | trunc 16 }}
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "8080"
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {{- include "assetcare.securityContext" . | nindent 8 }}
+      terminationGracePeriodSeconds: 40      # server.shutdown=graceful finishes in-flight requests first
+      containers:
+        - name: api
+          image: "{{ .Values.image.registry }}/{{ .Values.api.image }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- include "assetcare.containerSecurity" . | nindent 12 }}
+          ports: [{ name: http, containerPort: 8080 }]
+          envFrom:
+            - configMapRef: { name: {{ .Release.Name }}-api }
+            - secretRef: { name: {{ include "assetcare.apiSecret" . }} }
+          resources: {{- toYaml .Values.api.resources | nindent 12 }}
+          startupProbe:                      # a JVM plus Liquibase can take a while on a small ARM node
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-api
+  labels: {{- include "assetcare.component" (dict "root" . "component" "api") | nindent 4 }}
+spec:
+  selector: {{- include "assetcare.selector" (dict "root" . "component" "api") | nindent 4 }}
+  ports: [{ name: http, port: 8080, targetPort: http }]
+{{- if .Values.api.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-api
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ .Release.Name }}-api }
+  minReplicas: {{ .Values.api.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.api.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: {{ .Values.api.autoscaling.targetCPUUtilizationPercentage }} } }
+{{- end }}
+{{- if and .Values.observability.enabled .Values.observability.serviceMonitor }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}-api
+  labels: {{- include "assetcare.component" (dict "root" . "component" "api") | nindent 4 }}
+spec:
+  selector:
+    matchLabels: {{- include "assetcare.selector" (dict "root" . "component" "api") | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
+{{- end }}

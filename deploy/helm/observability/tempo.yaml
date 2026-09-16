@@ -1,0 +1,4 @@
+tempo:
+  retention: 72h
+  resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 512Mi } }
+persistence: { enabled: true, size: 5Gi }

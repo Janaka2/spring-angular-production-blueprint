@@ -1,0 +1,12 @@
+apiVersion: v2
+name: assetcare
+description: AssetCare - Angular SPA, Spring Boot API, PostgreSQL, Keycloak and MinIO on any Kubernetes. Reference deployment for K3s on OCI.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+kubeVersion: ">=1.29.0-0"
+keywords: [assetcare, spring-boot, angular, keycloak, postgresql]
+home: https://github.com/Janaka2/spring-angular-production-blueprint
+maintainers:
+  - name: Janaka Premathilaka
+    url: https://janaka.me

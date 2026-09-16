@@ -1,0 +1,68 @@
+{{- if .Values.keycloak.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-keycloak-realm
+  labels: {{- include "assetcare.component" (dict "root" . "component" "keycloak") | nindent 4 }}
+data:
+  assetcare-realm.json: |-
+{{ .Files.Get "realm/assetcare-realm.json" | indent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-keycloak
+  labels: {{- include "assetcare.component" (dict "root" . "component" "keycloak") | nindent 4 }}
+spec:
+  selector: {{- include "assetcare.selector" (dict "root" . "component" "keycloak") | nindent 4 }}
+  ports: [{ name: http, port: 8080, targetPort: http }]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-keycloak
+  labels: {{- include "assetcare.component" (dict "root" . "component" "keycloak") | nindent 4 }}
+spec:
+  serviceName: {{ .Release.Name }}-keycloak
+  replicas: 1
+  selector:
+    matchLabels: {{- include "assetcare.selector" (dict "root" . "component" "keycloak") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "assetcare.selector" (dict "root" . "component" "keycloak") | nindent 8 }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: keycloak
+          image: {{ .Values.keycloak.image }}
+          # Reference: dev mode with its embedded database on a volume, served under /auth behind TLS at the ingress.
+          # Production: "start" with KC_DB=postgres, KC_DB_URL, KC_DB_USERNAME/PASSWORD and a hostname-strict configuration.
+          args: ["start-dev"{{- if .Values.keycloak.importRealm }}, "--import-realm"{{- end }}, "--http-relative-path=/auth", "--proxy-headers=xforwarded", "--hostname=https://{{ .Values.global.host }}/auth"]
+          env:
+            - { name: KC_BOOTSTRAP_ADMIN_USERNAME, value: {{ .Values.keycloak.adminUser | quote }} }
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "assetcare.apiSecret" . }}, key: KC_BOOTSTRAP_ADMIN_PASSWORD } }
+            - { name: KC_HEALTH_ENABLED, value: "true" }
+            - { name: KC_HTTP_ENABLED, value: "true" }
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: mgmt, containerPort: 9000 }
+          resources: {{- toYaml .Values.keycloak.resources | nindent 12 }}
+          startupProbe: { httpGet: { path: /auth/health/started, port: mgmt }, periodSeconds: 5, failureThreshold: 60 }
+          readinessProbe: { httpGet: { path: /auth/health/ready, port: mgmt }, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /auth/health/live, port: mgmt }, periodSeconds: 20 }
+          volumeMounts:
+            - { name: data, mountPath: /opt/keycloak/data }
+            - { name: realm, mountPath: /opt/keycloak/data/import, readOnly: true }
+      volumes:
+        - name: realm
+          configMap: { name: {{ .Release.Name }}-keycloak-realm }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: {{ .Values.keycloak.storage }} } }
+{{- end }}
