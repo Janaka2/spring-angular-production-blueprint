@@ -39,6 +39,7 @@ spring:
       enabled: false               # dependencies are started explicitly with docker compose / make deps
 
 assetcare:
+  demo-data: ${ASSETCARE_DEMO_DATA:true}   # demo assets for the dev realm users; false in production
   cors:
     allowed-origins: ${ASSETCARE_CORS_ORIGINS:http://localhost:4200}
   storage:

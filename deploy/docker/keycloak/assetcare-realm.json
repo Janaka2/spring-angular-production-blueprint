@@ -10,12 +10,23 @@
   "ssoSessionMaxLifespan": 36000,
   "roles": {
     "realm": [
-      { "name": "USER",    "description": "Manages their own assets" },
-      { "name": "ADMIN",   "description": "Manages configuration; can restore and hard-delete archived assets" },
-      { "name": "AUDITOR", "description": "Reads all assets and audit history; cannot modify business data" }
+      {
+        "name": "USER",
+        "description": "Manages their own assets"
+      },
+      {
+        "name": "ADMIN",
+        "description": "Manages configuration; can restore and hard-delete archived assets"
+      },
+      {
+        "name": "AUDITOR",
+        "description": "Reads all assets and audit history; cannot modify business data"
+      }
     ]
   },
-  "defaultRoles": ["USER"],
+  "defaultRoles": [
+    "USER"
+  ],
   "clients": [
     {
       "clientId": "assetcare-spa",
@@ -27,8 +38,12 @@
       "serviceAccountsEnabled": false,
       "rootUrl": "http://localhost:4200",
       "baseUrl": "/",
-      "redirectUris": ["http://localhost:4200/*"],
-      "webOrigins": ["http://localhost:4200"],
+      "redirectUris": [
+        "http://localhost:4200/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200"
+      ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "http://localhost:4200/*"
@@ -75,8 +90,17 @@
       "lastName": "User",
       "enabled": true,
       "emailVerified": true,
-      "credentials": [{ "type": "password", "value": "alice-dev-password", "temporary": false }],
-      "realmRoles": ["USER"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "alice-dev-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "USER"
+      ],
+      "id": "10000000-0000-0000-0000-000000000001"
     },
     {
       "username": "bob",
@@ -85,8 +109,17 @@
       "lastName": "User",
       "enabled": true,
       "emailVerified": true,
-      "credentials": [{ "type": "password", "value": "bob-dev-password", "temporary": false }],
-      "realmRoles": ["USER"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "bob-dev-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "USER"
+      ],
+      "id": "10000000-0000-0000-0000-000000000002"
     },
     {
       "username": "admin",
@@ -95,8 +128,18 @@
       "lastName": "Admin",
       "enabled": true,
       "emailVerified": true,
-      "credentials": [{ "type": "password", "value": "admin-dev-password", "temporary": false }],
-      "realmRoles": ["USER", "ADMIN"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin-dev-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "USER",
+        "ADMIN"
+      ],
+      "id": "10000000-0000-0000-0000-000000000003"
     },
     {
       "username": "audrey",
@@ -105,8 +148,17 @@
       "lastName": "Auditor",
       "enabled": true,
       "emailVerified": true,
-      "credentials": [{ "type": "password", "value": "audrey-dev-password", "temporary": false }],
-      "realmRoles": ["AUDITOR"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "audrey-dev-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "AUDITOR"
+      ],
+      "id": "10000000-0000-0000-0000-000000000004"
     }
   ]
 }
