@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules.yml
+
+scrape_configs:
+  - job_name: assetcare-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8080"]     # local: the API on the host. Kubernetes: replaced by pod discovery in the Helm values.
+        labels: { service: assetcare-api, env: local }
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

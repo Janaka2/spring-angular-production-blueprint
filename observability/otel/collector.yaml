@@ -1,0 +1,47 @@
+# OpenTelemetry Collector: receives OTLP traces from the API and forwards them to Tempo; tails container logs into Loki.
+receivers:
+  otlp:
+    protocols:
+      grpc: { endpoint: 0.0.0.0:4317 }
+      http: { endpoint: 0.0.0.0:4318 }
+  filelog:
+    include: [/var/lib/docker/containers/*/*.log]
+    operators:
+      - type: json_parser
+        parse_from: body
+        parse_to: attributes
+      - type: json_parser
+        if: 'attributes.log matches "^\\{"'
+        parse_from: attributes.log
+        parse_to: attributes
+      - type: move
+        if: 'attributes["trace_id"] != nil'
+        from: attributes.trace_id
+        to: attributes.traceId
+
+processors:
+  batch: {}
+  memory_limiter: { check_interval: 5s, limit_mib: 256 }
+  resource:
+    attributes:
+      - { key: deployment.environment, value: local, action: upsert }
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls: { insecure: true }
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp/tempo]
+    logs:
+      receivers: [otlp, filelog]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlphttp/loki]
