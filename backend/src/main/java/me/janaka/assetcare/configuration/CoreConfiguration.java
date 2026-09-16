@@ -11,8 +11,10 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @Configuration
+@EnableScheduling   // dependency health gauges (DependencyHealthMetrics); jobs would live in infrastructure/jobs
 @EnableCaching
 @EnableConfigurationProperties(AssetCareProperties.class)
 public class CoreConfiguration {

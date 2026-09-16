@@ -84,8 +84,10 @@ Always Free ARM VM with TLS from Let's Encrypt). `make helm-lint` and `make helm
 
 ## How do I monitor it?
 
-`make observability` starts Prometheus, Grafana, Loki, Tempo and the OpenTelemetry Collector. Grafana dashboards and
-alert rules are in `observability/` and checked into Git. See `docs/operations/OBSERVABILITY.md`.
+`make status` (or `scripts/health.sh k8s assetcare` on a cluster) prints a one-screen health summary that names the
+runbook section for anything failing. `make observability` starts Prometheus, Alertmanager, the blackbox exporter,
+Grafana, Loki, Tempo and the OpenTelemetry Collector. Dashboards and alert rules are in `observability/` and checked
+into Git. What healthy means, the SLOs and the alert-to-runbook map: `docs/operations/HEALTH-MONITORING.md`.
 
 ## How do I extend it?
 
@@ -95,9 +97,10 @@ Read `docs/architecture/ARCHITECTURE.md` for the dependency direction and where 
 ## Documentation map
 
 - `docs/ENVIRONMENT-SETUP.md` — developer, CI and deployment machine setup, step by step
+- `docs/HOW-TO-MODIFY.md` — the playbook for common changes; the same playbook as AI skills in `.claude/skills/`
 - `docs/architecture/` — architecture, domain model, Oracle migration
 - `docs/adr/` — architecture decision records
-- `docs/operations/` — deployment, OCI free tier, runbook, backup and restore, scaling, observability
+- `docs/operations/` — deployment, OCI free tier, runbook, health monitoring, backup and restore, scaling, observability, post-mortem template
 - `docs/security/` — security principles, threat model
 - `docs/PRODUCTION-GAPS.md` — what an enterprise replaces
 - `docs/academy/` — the seven-course roadmap and the Academy article

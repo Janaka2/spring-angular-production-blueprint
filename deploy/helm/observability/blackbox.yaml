@@ -1,0 +1,6 @@
+# prometheus-blackbox-exporter chart values: the modules from observability/blackbox/blackbox.yaml
+config:
+  modules:
+    http_2xx: { prober: http, timeout: 5s, http: { valid_status_codes: [200], follow_redirects: true, preferred_ip_protocol: ip4 } }
+    http_401: { prober: http, timeout: 5s, http: { valid_status_codes: [401], preferred_ip_protocol: ip4 } }
+resources: { requests: { cpu: 10m, memory: 32Mi }, limits: { memory: 64Mi } }

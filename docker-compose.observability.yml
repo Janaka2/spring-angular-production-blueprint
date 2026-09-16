@@ -22,8 +22,30 @@ services:
       - ./observability/prometheus/rules.yml:/etc/prometheus/rules.yml:ro
     ports:
       - "9090:9090"
+    depends_on: [alertmanager, blackbox]
     extra_hosts:
       - "host.docker.internal:host-gateway"   # scrape the API running on the host during development
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.0
+    command: ["--config.file=/etc/alertmanager/alertmanager.yaml", "--storage.path=/alertmanager"]
+    volumes:
+      - ./observability/alertmanager/alertmanager.yaml:/etc/alertmanager/alertmanager.yaml:ro
+      - alertmanager-data:/alertmanager
+    ports:
+      - "9093:9093"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # webhook receiver on the host while testing the notification chain
+
+  blackbox:
+    image: prom/blackbox-exporter:v0.28.0
+    command: ["--config.file=/etc/blackbox/blackbox.yaml"]
+    volumes:
+      - ./observability/blackbox/blackbox.yaml:/etc/blackbox/blackbox.yaml:ro
+    ports:
+      - "9115:9115"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   loki:
     image: grafana/loki:3.7.7
@@ -60,3 +82,4 @@ services:
 volumes:
   loki-data:
   tempo-data:
+  alertmanager-data:

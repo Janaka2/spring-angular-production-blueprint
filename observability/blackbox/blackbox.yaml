@@ -1,0 +1,16 @@
+# Blackbox exporter modules: probe the application the way a user reaches it.
+modules:
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [200]
+      follow_redirects: true
+      fail_if_not_ssl: false          # local is plain http; production probes are https and cert expiry is exported anyway
+      preferred_ip_protocol: ip4
+  http_401:                           # the API must refuse anonymous calls; a 200 here is a security regression
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [401]
+      preferred_ip_protocol: ip4

@@ -1,0 +1,5 @@
+# Review routing. Adjust the handles when a team owns a part.
+*                       @Janaka2
+/docs/adr/              @Janaka2
+/backend/src/main/resources/db/changelog/   @Janaka2
+/deploy/ /infra/ /.github/                  @Janaka2

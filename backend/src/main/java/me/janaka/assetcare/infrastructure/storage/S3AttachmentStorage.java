@@ -8,6 +8,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import me.janaka.assetcare.application.port.AttachmentStorage;
 import me.janaka.assetcare.configuration.AssetCareProperties;
+import me.janaka.assetcare.infrastructure.health.StorageHealthIndicator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -18,6 +19,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 /**
@@ -26,7 +28,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
  */
 @Component
 @ConditionalOnProperty(name = "assetcare.storage.type", havingValue = "s3")
-public class S3AttachmentStorage implements AttachmentStorage {
+public class S3AttachmentStorage implements AttachmentStorage, StorageHealthIndicator.StorageProbe {
 
     private final S3Client s3;
     private final String bucket;
@@ -63,5 +65,10 @@ public class S3AttachmentStorage implements AttachmentStorage {
     @Override
     public void delete(String key) {
         s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+    }
+
+    @Override
+    public void headBucket() {
+        s3.headBucket(HeadBucketRequest.builder().bucket(bucket).build());
     }
 }

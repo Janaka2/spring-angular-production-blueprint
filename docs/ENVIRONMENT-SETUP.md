@@ -556,7 +556,7 @@ certificate is re-issued within a minute.
 ```bash
 curl -sI https://assetcare.yourdomain.tld | head -1
 curl -sv https://assetcare.yourdomain.tld 2>&1 | grep -E "issuer:|subject:"
-scripts/smoke-test.sh https://assetcare.yourdomain.tld/api
+scripts/smoke-test.sh https://assetcare.yourdomain.tld
 curl -s https://assetcare.yourdomain.tld/config.json | jq -c .
 ```
 

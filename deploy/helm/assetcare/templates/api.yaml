@@ -109,3 +109,39 @@ spec:
       path: /actuator/prometheus
       interval: 15s
 {{- end }}
+{{- if and .Values.observability.enabled .Values.observability.serviceMonitor }}
+---
+# From the outside in: the blackbox exporter probes the public host through DNS, TLS and the ingress, and checks that
+# anonymous API calls are refused. Feeds AssetCareEndpointDown and AssetCareAnonymousAccessAllowed.
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: {{ .Release.Name }}-external
+  labels: {{- include "assetcare.component" (dict "root" . "component" "api") | nindent 4 }}
+spec:
+  jobName: blackbox-liveness
+  interval: 30s
+  module: http_2xx
+  prober:
+    url: blackbox-prometheus-blackbox-exporter.observability:9115
+  targets:
+    staticConfig:
+      static: ["https://{{ .Values.global.host }}/actuator/health/liveness"]
+      labels: { service: assetcare-api, probe: liveness }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: {{ .Release.Name }}-anonymous-refused
+  labels: {{- include "assetcare.component" (dict "root" . "component" "api") | nindent 4 }}
+spec:
+  jobName: blackbox-auth
+  interval: 60s
+  module: http_401
+  prober:
+    url: blackbox-prometheus-blackbox-exporter.observability:9115
+  targets:
+    staticConfig:
+      static: ["https://{{ .Values.global.host }}/api/v1/assets"]
+      labels: { service: assetcare-api, probe: anonymous-refused }
+{{- end }}

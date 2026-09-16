@@ -8,6 +8,27 @@ prometheus:
 alertmanager:
   alertmanagerSpec:
     resources: { requests: { cpu: 20m, memory: 64Mi } }
+  # same routing as observability/alertmanager/alertmanager.yaml; put the webhook URL / SMTP password in a Secret and
+  # reference it with alertmanagerSpec.secrets + *_file fields rather than pasting it here
+  config:
+    global: { resolve_timeout: 5m }
+    route:
+      receiver: webhook
+      group_by: [alertname, service]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - matchers: [severity="critical"]
+          receiver: webhook
+          repeat_interval: 1h
+    receivers:
+      - name: webhook
+        webhook_configs: [{ url: https://ntfy.sh/CHANGE-ME-assetcare-alerts, send_resolved: true }]
+    inhibit_rules:
+      - source_matchers: [alertname="AssetCareApiDown"]
+        target_matchers: [alertname=~"AssetCareHigh5xxRate|AssetCareP95LatencyHigh|AssetCareDependencyDown|AssetCareDbPoolNearlyExhausted"]
+        equal: [service]
 grafana:
   adminPassword: CHANGE-ME
   resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 256Mi } }
@@ -19,9 +40,11 @@ grafana:
       apiVersion: 1
       providers: [{ name: assetcare, folder: AssetCare, type: file, options: { path: /var/lib/grafana/dashboards/assetcare } }]
   dashboardsConfigMaps: { assetcare: assetcare-dashboards }   # kubectl create configmap assetcare-dashboards --from-file=observability/grafana/dashboards/
-additionalPrometheusRulesMap:
-  assetcare:
-    groups: []   # paste the groups from observability/prometheus/rules.yml, or create a PrometheusRule from that file
+# alert rules: create them from the same file the local profile uses
+#   kubectl -n observability create configmap assetcare-rules --from-file=observability/prometheus/rules.yml   (or a PrometheusRule)
+# The chart also creates a Probe (blackbox) for the public host when observability.enabled=true; install the exporter:
+#   helm upgrade --install blackbox prometheus-community/prometheus-blackbox-exporter -n observability -f deploy/helm/observability/blackbox.yaml
+additionalPrometheusRulesMap: {}
 kubeEtcd: { enabled: false }     # K3s: no separate etcd
 kubeControllerManager: { enabled: false }
 kubeScheduler: { enabled: false }

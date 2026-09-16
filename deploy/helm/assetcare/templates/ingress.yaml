@@ -1,6 +1,7 @@
 {{- if .Values.ingress.enabled }}
-# One host, three paths: / is the SPA, /api and /actuator-free API under /api, /auth is Keycloak.
-# Only /api/** of the API is exposed; /actuator stays inside the cluster.
+# One host: / is the SPA, /api/** plus the OpenAPI paths go to the API, /auth is Keycloak.
+# Of the actuator only /actuator/health/** (liveness, readiness; details need a token) and /actuator/info (version)
+# are exposed, for external probes and the smoke test. Metrics and everything else stay inside the cluster.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -29,6 +30,12 @@ spec:
             backend: { service: { name: {{ .Release.Name }}-api, port: { number: 8080 } } }
           - path: /swagger-ui
             pathType: Prefix
+            backend: { service: { name: {{ .Release.Name }}-api, port: { number: 8080 } } }
+          - path: /actuator/health
+            pathType: Prefix
+            backend: { service: { name: {{ .Release.Name }}-api, port: { number: 8080 } } }
+          - path: /actuator/info
+            pathType: Exact
             backend: { service: { name: {{ .Release.Name }}-api, port: { number: 8080 } } }
           {{- if .Values.keycloak.enabled }}
           - path: /auth

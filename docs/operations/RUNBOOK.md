@@ -5,6 +5,9 @@ For the person on call. Each entry: how you notice, what to check, what to do, h
 
 ## Where things are
 
+First command, always: `scripts/health.sh` locally or `scripts/health.sh k8s assetcare` on a cluster. It prints OK /
+WARN / FAIL per check and the section of this runbook to open. What each signal means: `HEALTH-MONITORING.md`.
+
 ```bash
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml       # on the VM
 kubectl -n assetcare get pods -o wide
@@ -104,3 +107,7 @@ Expected time: under an hour once the VM exists. Practise it once; the drill is 
 
 One node cannot scale horizontally. `docs/operations/SCALING.md` covers the order: measure (k6), tune the pool and
 JVM, then more nodes and `api.autoscaling.enabled=true`, then a managed database.
+
+## Past incidents
+
+None recorded yet. Write one with `POST-MORTEM-TEMPLATE.md` and link it here.

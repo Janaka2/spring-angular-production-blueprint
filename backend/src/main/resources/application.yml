@@ -79,6 +79,9 @@ management:
       group:
         readiness:
           include: readinessState,db
+        dependencies:                # /actuator/health/dependencies: storage and identity provider, informational
+          include: db,storage,identityProvider
+          show-details: always
   info:
     build:
       enabled: true

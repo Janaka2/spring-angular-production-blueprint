@@ -1,0 +1,19 @@
+name: Bug
+description: Something behaves differently from the documentation or the API contract
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes: { label: Version, description: "git describe --tags or the image tag", placeholder: v1.0.0 }
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes: { label: Steps to reproduce, description: "Commands or clicks; include the X-Request-Id from the response or error page if you have one" }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: Expected vs actual }
+    validations: { required: true }
+  - type: textarea
+    id: logs
+    attributes: { label: Logs or Problem Details body, render: json }

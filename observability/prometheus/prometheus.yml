@@ -5,12 +5,41 @@ global:
 rule_files:
   - /etc/prometheus/rules.yml
 
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
 scrape_configs:
   - job_name: assetcare-api
     metrics_path: /actuator/prometheus
     static_configs:
-      - targets: ["host.docker.internal:8080"]     # local: the API on the host. Kubernetes: replaced by pod discovery in the Helm values.
+      - targets: ["host.docker.internal:8080"]     # local: the API on the host. Kubernetes: ServiceMonitor from the chart.
         labels: { service: assetcare-api, env: local }
-  - job_name: prometheus
+
+  # from the outside in: is the API reachable and does it refuse anonymous calls
+  - job_name: blackbox-liveness
+    metrics_path: /probe
+    params: { module: [http_2xx] }
     static_configs:
-      - targets: ["localhost:9090"]
+      - targets: ["http://host.docker.internal:8080/actuator/health/liveness"]
+        labels: { service: assetcare-api, probe: liveness }
+    relabel_configs:
+      - { source_labels: [__address__], target_label: __param_target }
+      - { source_labels: [__param_target], target_label: instance }
+      - { target_label: __address__, replacement: "blackbox:9115" }
+  - job_name: blackbox-auth
+    metrics_path: /probe
+    params: { module: [http_401] }
+    static_configs:
+      - targets: ["http://host.docker.internal:8080/api/v1/assets"]
+        labels: { service: assetcare-api, probe: anonymous-refused }
+    relabel_configs:
+      - { source_labels: [__address__], target_label: __param_target }
+      - { source_labels: [__param_target], target_label: instance }
+      - { target_label: __address__, replacement: "blackbox:9115" }
+
+  - job_name: alertmanager
+    static_configs: [{ targets: ["alertmanager:9093"] }]
+  - job_name: prometheus
+    static_configs: [{ targets: ["localhost:9090"] }]

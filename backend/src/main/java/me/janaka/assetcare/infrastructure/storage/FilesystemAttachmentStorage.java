@@ -11,6 +11,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import me.janaka.assetcare.application.port.AttachmentStorage;
+import me.janaka.assetcare.infrastructure.health.StorageHealthIndicator;
 import me.janaka.assetcare.configuration.AssetCareProperties;
 import me.janaka.assetcare.domain.NotFoundException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -19,7 +20,7 @@ import org.springframework.stereotype.Component;
 /** Development storage: a directory. Keys are validated so they cannot escape the root. */
 @Component
 @ConditionalOnProperty(name = "assetcare.storage.type", havingValue = "filesystem", matchIfMissing = true)
-public class FilesystemAttachmentStorage implements AttachmentStorage {
+public class FilesystemAttachmentStorage implements AttachmentStorage, StorageHealthIndicator.StorageProbe {
 
     private final Path root;
 
@@ -62,5 +63,10 @@ public class FilesystemAttachmentStorage implements AttachmentStorage {
         var p = root.resolve(key).normalize();
         if (!p.startsWith(root)) throw new IllegalArgumentException("storage key escapes the root");
         return p;
+    }
+
+    @Override
+    public void headBucket() {
+        // filesystem storage: the indicator checks the root directory itself
     }
 }

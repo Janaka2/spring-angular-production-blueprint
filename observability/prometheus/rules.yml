@@ -1,71 +1,124 @@
-# Alert rules. Each threshold has its reason next to it; a rule without a reason is noise waiting to happen.
+# Alert rules. Each one says why it exists and which runbook section to open. Severity: critical pages, warning waits
+# for working hours (observability/alertmanager/alertmanager.yaml). The table of all alerts: docs/operations/HEALTH-MONITORING.md §3.
 groups:
-  - name: assetcare-api
+  - name: assetcare-availability
     rules:
-      - alert: AssetCareApiDown
-        expr: up{job="assetcare-api"} == 0
-        for: 2m
-        labels: { severity: critical }
+      - alert: AssetCareEndpointDown
+        expr: probe_success{probe="liveness"} == 0
+        for: 3m
+        labels: { severity: critical, service: assetcare-api }
         annotations:
-          summary: "AssetCare API is not being scraped"
-          description: "No metrics for 2 minutes. Two minutes rides out a rolling restart; longer is an outage."
+          summary: "AssetCare is not reachable from the outside ({{ $labels.instance }})"
+          description: "The blackbox probe of the liveness endpoint has failed for 3 minutes: DNS, TLS, ingress or every pod is down."
+          runbook: "docs/operations/RUNBOOK.md#certificate-not-issued, #api-pods-restarting--not-ready"
+      - alert: AssetCareApiDown
+        expr: up{job=~"assetcare-api|assetcare.*"} == 0
+        for: 2m
+        labels: { severity: critical, service: assetcare-api }
+        annotations:
+          summary: "AssetCare API scrape target is down"
+          description: "Prometheus could not scrape /actuator/prometheus for 2 minutes: the process is gone or not listening."
+          runbook: "docs/operations/RUNBOOK.md#api-pods-restarting--not-ready"
+      - alert: AssetCareAnonymousAccessAllowed
+        expr: probe_success{probe="anonymous-refused"} == 0 and probe_http_status_code{probe="anonymous-refused"} == 200
+        for: 1m
+        labels: { severity: critical, service: assetcare-api }
+        annotations:
+          summary: "The API answered an anonymous request with 200"
+          description: "Security regression: /api/v1/assets must return 401 without a token. Stop the rollout and roll back."
+          runbook: "docs/operations/RUNBOOK.md#roll-back"
 
+  - name: assetcare-requests
+    rules:
       - alert: AssetCareHigh5xxRate
         expr: |
-          sum(rate(http_server_requests_seconds_count{job="assetcare-api", status=~"5.."}[5m]))
-            / sum(rate(http_server_requests_seconds_count{job="assetcare-api"}[5m])) > 0.02
+          sum(rate(http_server_requests_seconds_count{application="assetcare-api", status=~"5.."}[5m]))
+            / sum(rate(http_server_requests_seconds_count{application="assetcare-api"}[5m])) > 0.02
         for: 5m
-        labels: { severity: critical }
+        labels: { severity: critical, service: assetcare-api }
         annotations:
           summary: "More than 2% of requests fail with 5xx"
-          description: "5xx are our bugs or our dependencies. 2% over 5 minutes is well above the noise of a single bad request and well below users giving up."
-
+          description: "Error-rate SLO is 1%; 2% over 5 minutes means users are hitting a broken path. Find the endpoint on the dashboard, then one request id in Loki."
+          runbook: "docs/operations/RUNBOOK.md#slow-requests-alert-assetcareapislow"
       - alert: AssetCareP95LatencyHigh
         expr: |
-          histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job="assetcare-api", uri!~"/actuator.*"}[5m]))) > 0.5
+          histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{application="assetcare-api", uri!~"/actuator.*"}[5m]))) > 1
         for: 10m
-        labels: { severity: warning }
+        labels: { severity: warning, service: assetcare-api }
         annotations:
-          summary: "p95 latency above 500 ms for 10 minutes"
-          description: "The k6 reference SLO is 300 to 400 ms for list and search; 500 ms sustained means the database or the pool is the bottleneck. See SCALING.md."
+          summary: "p95 latency above 1 s for 10 minutes"
+          description: "SLO is 300 ms for reads and 800 ms for writes. Database, pool or node saturation are the usual causes."
+          runbook: "docs/operations/RUNBOOK.md#slow-requests-alert-assetcareapislow"
 
+  - name: assetcare-database
+    rules:
       - alert: AssetCareDbPoolNearlyExhausted
-        expr: hikaricp_connections_active{job="assetcare-api"} / hikaricp_connections_max{job="assetcare-api"} > 0.85
+        expr: hikaricp_connections_active{application="assetcare-api"} / hikaricp_connections_max{application="assetcare-api"} > 0.8
         for: 5m
-        labels: { severity: warning }
+        labels: { severity: warning, service: assetcare-api }
         annotations:
-          summary: "Hikari pool above 85% for 5 minutes"
-          description: "Requests will start waiting for connections (hikaricp_connections_pending). Add replicas or raise the pool within PostgreSQL's max_connections."
-
+          summary: "Over 80% of the connection pool is busy"
+          description: "Slow queries or a leak. Before raising the pool size, look at pg_stat_activity and the slowest endpoint."
+          runbook: "docs/operations/RUNBOOK.md#slow-requests-alert-assetcareapislow"
       - alert: AssetCareDbConnectionsPending
-        expr: hikaricp_connections_pending{job="assetcare-api"} > 0
+        expr: hikaricp_connections_pending{application="assetcare-api"} > 0
         for: 2m
-        labels: { severity: warning }
+        labels: { severity: warning, service: assetcare-api }
         annotations:
-          summary: "Threads are waiting for a database connection"
+          summary: "Requests are waiting for a database connection"
+          description: "Threads block on the pool: the database is the bottleneck right now."
+          runbook: "docs/operations/RUNBOOK.md#slow-requests-alert-assetcareapislow"
 
+  - name: assetcare-runtime
+    rules:
       - alert: AssetCareJvmHeapHigh
-        expr: sum(jvm_memory_used_bytes{job="assetcare-api", area="heap"}) / sum(jvm_memory_max_bytes{job="assetcare-api", area="heap"}) > 0.9
+        expr: sum(jvm_memory_used_bytes{application="assetcare-api", area="heap"}) / sum(jvm_memory_max_bytes{application="assetcare-api", area="heap"}) > 0.9
         for: 10m
-        labels: { severity: warning }
+        labels: { severity: warning, service: assetcare-api }
         annotations:
           summary: "JVM heap above 90% for 10 minutes"
-          description: "Sustained, not a GC cycle. Check for a leak in a trace; raise the container limit only with a reason."
-
-  - name: kubernetes
-    rules:
+          description: "The container exits on OutOfMemoryError by design; this alert gives you time before that. Raise the memory limit or find the leak."
+          runbook: "docs/operations/RUNBOOK.md#api-pods-restarting--not-ready"
       - alert: AssetCarePodRestarting
-        expr: increase(kube_pod_container_status_restarts_total{namespace="assetcare"}[30m]) > 3
+        expr: increase(kube_pod_container_status_restarts_total{namespace="assetcare", container="api"}[1h]) > 3
         for: 0m
-        labels: { severity: critical }
+        labels: { severity: warning, service: assetcare-api }
         annotations:
-          summary: "A pod restarted more than 3 times in 30 minutes"
-          description: "Crash loop or failing liveness probe. kubectl describe pod and the last logs (RUNBOOK.md)."
+          summary: "The API pod restarted more than 3 times in an hour"
+          description: "Crash loop: OOMKilled, failing liveness, or a startup error such as a Liquibase lock."
+          runbook: "docs/operations/RUNBOOK.md#api-pods-restarting--not-ready"
+      - alert: AssetCareDependencyDown
+        expr: assetcare_dependency_up == 0
+        for: 5m
+        labels: { severity: warning, service: assetcare-api }
+        annotations:
+          summary: "Dependency {{ $labels.name }} is down"
+          description: "storage: uploads and downloads fail. identityProvider: new logins fail, existing tokens keep working. The API stays ready on purpose."
+          runbook: "docs/operations/RUNBOOK.md#attachments-failing-5xx-on-upload, #401-or-403-for-everyone"
 
+  - name: assetcare-platform
+    rules:
       - alert: AssetCareVolumeNearlyFull
-        expr: kubelet_volume_stats_available_bytes{namespace="assetcare"} / kubelet_volume_stats_capacity_bytes{namespace="assetcare"} < 0.1
-        for: 10m
-        labels: { severity: critical }
+        expr: kubelet_volume_stats_used_bytes{namespace="assetcare"} / kubelet_volume_stats_capacity_bytes{namespace="assetcare"} > 0.85
+        for: 15m
+        labels: { severity: warning, service: assetcare-api }
         annotations:
-          summary: "A persistent volume has less than 10% free"
-          description: "PostgreSQL stops accepting writes when its disk is full. Expand the volume or prune backups."
+          summary: "Volume {{ $labels.persistentvolumeclaim }} is over 85% full"
+          description: "PostgreSQL, MinIO or the backup volume. Lower retention or grow the volume before it is full; a full data volume stops writes."
+          runbook: "docs/operations/RUNBOOK.md#disk-full"
+      - alert: AssetCareBackupStale
+        expr: time() - max(kube_cronjob_status_last_successful_time{namespace="assetcare", cronjob=~".*backup"}) > 30 * 3600
+        for: 0m
+        labels: { severity: critical, service: assetcare-api }
+        annotations:
+          summary: "No successful backup for 30 hours"
+          description: "The nightly CronJob did not succeed. Check the job logs and the backup volume; run one by hand (ENVIRONMENT-SETUP P14)."
+          runbook: "docs/operations/BACKUP-RESTORE.md"
+      - alert: AssetCareCertificateExpiringSoon
+        expr: (certmanager_certificate_expiration_timestamp_seconds{namespace="assetcare"} - time()) / 86400 < 14
+        for: 1h
+        labels: { severity: warning, service: assetcare-api }
+        annotations:
+          summary: "TLS certificate {{ $labels.name }} expires in under 14 days"
+          description: "cert-manager renews 30 days ahead; if this fires, renewal is failing (DNS, port 80, rate limit)."
+          runbook: "docs/operations/RUNBOOK.md#certificate-not-issued"

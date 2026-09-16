@@ -136,7 +136,7 @@ Content-Type: application/problem+json
 helm upgrade --install assetcare deploy/helm/assetcare -n assetcare --create-namespace \
   --set global.host=assetcare.example.com --set image.tag=1.0.0 \
   --set api.existingSecret=assetcare-secrets --wait
-scripts/smoke-test.sh https://assetcare.example.com/api
+scripts/smoke-test.sh https://assetcare.example.com
 ```
 
 **Proof.** `helm lint` and `helm template` pass for the free and the enterprise value sets, executed locally. Image builds, Trivy and the config render check run in CI. The OCI installation is documented step by step with a verification per step and was not executed by the author's build environment.

@@ -70,7 +70,7 @@ helm upgrade --install assetcare deploy/helm/assetcare \
   --set api.existingSecret=assetcare-secrets \
   --wait --timeout 10m
 kubectl -n assetcare get pods
-scripts/smoke-test.sh https://assetcare.example.com/api
+scripts/smoke-test.sh https://assetcare.example.com
 ```
 
 The same command upgrades: change `image.tag` and run it again. The API Deployment uses `maxUnavailable: 0`, so the old

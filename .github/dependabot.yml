@@ -1,0 +1,27 @@
+# Dependency updates, grouped so a week's worth of bumps is one PR per ecosystem. The CI pipeline (Testcontainers,
+# ArchUnit, Playwright, scans) is the gate; nothing merges on green alone without a look at the changelog.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /backend
+    schedule: { interval: weekly, day: monday, time: "06:00", timezone: Europe/Zurich }
+    groups:
+      spring: { patterns: ["org.springframework*", "io.micrometer*"] }
+      build-and-test: { patterns: ["org.apache.maven*", "org.junit*", "org.testcontainers*", "com.tngtech*"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly, day: monday, time: "06:00", timezone: Europe/Zurich }
+    groups:
+      angular: { patterns: ["@angular/*", "@angular-devkit/*", "angular-eslint", "typescript"] }
+      tooling: { patterns: ["eslint*", "prettier", "vitest", "@playwright/*", "@types/*"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: docker
+    directories: [/backend, /frontend]
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: terraform
+    directory: /infra/oci
+    schedule: { interval: monthly }

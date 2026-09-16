@@ -1,0 +1,21 @@
+name: Incident
+description: Production is degraded or down; opens the timeline that becomes the post-mortem
+labels: [incident]
+body:
+  - type: input
+    id: started
+    attributes: { label: Started at (UTC) }
+    validations: { required: true }
+  - type: dropdown
+    id: impact
+    attributes: { label: Impact, options: ["Down for everyone", "Degraded (slow or partial)", "One feature broken", "No user impact (alert only)"] }
+    validations: { required: true }
+  - type: textarea
+    id: signal
+    attributes: { label: How was it noticed, description: "Alert name, user report, dashboard" }
+  - type: textarea
+    id: timeline
+    attributes: { label: Timeline, description: "Append as you go: time, what was seen, what was done", value: "- HH:MM  " }
+  - type: textarea
+    id: runbook
+    attributes: { label: Runbook section used, description: "and what it was missing" }

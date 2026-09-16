@@ -7,7 +7,7 @@ FRONTEND := frontend
 MVN := ./mvnw -q -B
 
 .PHONY: help doctor deps deps-down dev backend frontend build test unit-test integration-test arch-test lint e2e \
-        observability observability-down docker helm-lint helm-template smoke-test backup restore clean
+        observability observability-down docker helm-lint helm-template smoke-test status backup restore clean
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
@@ -86,6 +86,9 @@ helm-lint: ## lint the chart
 
 helm-template: ## render the chart with the core profile
 	helm template assetcare deploy/helm/assetcare -f deploy/helm/assetcare/values.yaml
+
+status: ## one-screen health of the local stack (scripts/health.sh; k8s: scripts/health.sh k8s assetcare)
+	scripts/health.sh local
 
 smoke-test: ## hit health and a public endpoint of a running deployment (BASE_URL=https://assetcare.example.com)
 	scripts/smoke-test.sh $${BASE_URL:-http://localhost:8080}

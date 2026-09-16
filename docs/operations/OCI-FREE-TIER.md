@@ -70,7 +70,7 @@ helm upgrade --install assetcare deploy/helm/assetcare -n assetcare \
   --set global.host=assetcare.yourdomain.tld --set image.tag=1.0.0 \
   --set api.existingSecret=assetcare-secrets --wait --timeout 15m
 kubectl -n assetcare get pods,pvc,ingress,certificate
-scripts/smoke-test.sh https://assetcare.yourdomain.tld/api
+scripts/smoke-test.sh https://assetcare.yourdomain.tld
 ```
 
 The first start is slow: Keycloak imports the realm and the API runs Liquibase; the startup probes allow three minutes.
