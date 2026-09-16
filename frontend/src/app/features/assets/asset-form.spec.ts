@@ -18,7 +18,14 @@ describe('AssetForm', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AssetForm],
-      providers: [provideRouter([{ path: 'assets/:id', children: [] }, { path: 'assets', children: [] }]), { provide: AssetsApi, useValue: api }, { provide: Confirm, useValue: confirm }],
+      providers: [
+        provideRouter([
+          { path: 'assets/:id', children: [] },
+          { path: 'assets', children: [] },
+        ]),
+        { provide: AssetsApi, useValue: api },
+        { provide: Confirm, useValue: confirm },
+      ],
     }).compileComponents();
     api.create.mockReset();
     api.update.mockReset();

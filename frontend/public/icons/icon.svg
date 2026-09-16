@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AssetCare">
+  <rect width="64" height="64" rx="14" fill="#0b57d0"/>
+  <path d="M18 24h28v22a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z" fill="#fff" opacity=".95"/>
+  <path d="M16 18h32l-3 8H19z" fill="#d3e3fd"/>
+  <rect x="27" y="32" width="10" height="4" rx="2" fill="#0b57d0"/>
+</svg>

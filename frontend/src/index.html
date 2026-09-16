@@ -5,13 +5,60 @@
     <title>AssetCare</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="AssetCare keeps track of the things you own and the maintenance they need." />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#0b57d0" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link rel="apple-touch-icon" href="icons/icon.svg" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <style>
+      /* splash while the bundle loads and the login completes; replaced by the app */
+      .splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        font-family: Roboto, system-ui, sans-serif;
+        color: #5f6368;
+        background: #fff;
+      }
+      @media (prefers-color-scheme: dark) {
+        .splash {
+          background: #131314;
+          color: #c4c7c5;
+        }
+      }
+      .splash .dot {
+        width: 32px;
+        height: 32px;
+        border: 3px solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body>
-    <app-root></app-root>
+    <app-root>
+      <div class="splash" role="status" aria-live="polite">
+        <div class="dot"></div>
+        <div>Loading AssetCare…</div>
+      </div>
+    </app-root>
+    <noscript>AssetCare needs JavaScript. Please enable it or use a browser that supports it.</noscript>
   </body>
 </html>

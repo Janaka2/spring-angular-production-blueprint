@@ -9,6 +9,10 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { ImagePreviewDialog } from '../../shared/image-preview-dialog';
+import { relativeTime } from '../../shared/format';
+import { Notify } from '../../core/ui/notify';
 import { MatDialog, MatDialogModule, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -34,7 +38,7 @@ import { bytes, statusClass, urgencyClass } from '../../shared/format';
 @Component({
   selector: 'app-plan-dialog',
   imports: [FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule],
-  template: ` <h2 mat-dialog-title>Plan maintenance</h2>
+  template: ` <h2 mat-dialog-title>{{ data ? 'Edit maintenance' : 'Plan maintenance' }}</h2>
     <mat-dialog-content>
       <div class="form-grid">
         <mat-form-field appearance="outline"
@@ -72,22 +76,34 @@ import { bytes, statusClass, urgencyClass } from '../../shared/format';
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-flat-button [disabled]="!m.description || !m.dueDate" (click)="ref.close(m)">Plan</button>
+      <button mat-flat-button [disabled]="!m.description || !m.dueDate" (click)="ref.close(m)">{{ data ? 'Save' : 'Plan' }}</button>
     </mat-dialog-actions>`,
 })
 export class PlanDialog {
+  readonly data = inject<MaintenanceItem | null>(MAT_DIALOG_DATA, { optional: true });
   readonly ref = inject(MatDialogRef<PlanDialog>);
   readonly types = ['SERVICE', 'INSPECTION', 'REPLACEMENT', 'CLEANING', 'OTHER'] as const;
-  m: MaintenanceItemRequest = {
-    type: 'SERVICE',
-    description: '',
-    dueDate: '',
-    recurrence: null,
-    cost: null,
-    currency: 'CHF',
-    serviceProvider: null,
-    notes: null,
-  };
+  m: MaintenanceItemRequest = this.data
+    ? {
+        type: this.data.type,
+        description: this.data.description,
+        dueDate: this.data.dueDate,
+        recurrence: this.data.recurrence,
+        cost: this.data.cost,
+        currency: this.data.currency ?? 'CHF',
+        serviceProvider: this.data.serviceProvider,
+        notes: this.data.notes,
+      }
+    : {
+        type: 'SERVICE',
+        description: '',
+        dueDate: '',
+        recurrence: null,
+        cost: null,
+        currency: 'CHF',
+        serviceProvider: null,
+        notes: null,
+      };
 }
 
 /** Record what was done: completes a planned item, or logs an unplanned repair. */
@@ -144,6 +160,7 @@ interface Loaded<T> {
 @Component({
   selector: 'app-asset-detail',
   imports: [
+    MatTooltipModule,
     RouterLink,
     DatePipe,
     CurrencyPipe,
@@ -176,6 +193,12 @@ interface Loaded<T> {
             </h1>
             <div class="muted">{{ x.category.name }} · {{ x.assetTag ?? 'no tag' }} · v{{ x.version }}</div>
           </div>
+          @if (!auth.canWrite()) {
+            <div class="actions" style="margin:0">
+              <button mat-icon-button (click)="copyLink()" aria-label="Copy link" matTooltip="Copy link"><mat-icon>link</mat-icon></button>
+              <button mat-icon-button (click)="print()" aria-label="Print" matTooltip="Print"><mat-icon>print</mat-icon></button>
+            </div>
+          }
           @if (auth.canWrite()) {
             <div class="actions" style="margin:0">
               @if (x.status !== 'ARCHIVED') {
@@ -183,6 +206,11 @@ interface Loaded<T> {
               }
               <button mat-stroked-button [matMenuTriggerFor]="more" aria-label="More actions"><mat-icon>more_horiz</mat-icon> More</button>
               <mat-menu #more="matMenu">
+                <button mat-menu-item (click)="copyLink()"><mat-icon>link</mat-icon>Copy link</button>
+                <a mat-menu-item [routerLink]="['/assets/new']" [queryParams]="{ from: x.id }"
+                  ><mat-icon>content_copy</mat-icon>Duplicate</a
+                >
+                <button mat-menu-item (click)="print()"><mat-icon>print</mat-icon>Print</button>
                 @if (x.status === 'ACTIVE') {
                   <button mat-menu-item (click)="changeStatus('IN_REPAIR')">Mark as in repair</button
                   ><button mat-menu-item (click)="changeStatus('RETIRED')">Retire</button>
@@ -196,6 +224,9 @@ interface Loaded<T> {
                 }
                 @if (x.status === 'ARCHIVED' && auth.isAdmin()) {
                   <button mat-menu-item (click)="restore()"><mat-icon>unarchive</mat-icon>Restore</button>
+                  <button mat-menu-item (click)="deletePermanently()" class="danger">
+                    <mat-icon>delete_forever</mat-icon>Delete permanently
+                  </button>
                 }
               </mat-menu>
             </div>
@@ -267,7 +298,12 @@ interface Loaded<T> {
                     @if (i.status === 'PLANNED' && auth.canWrite()) {
                       <span matListItemMeta>
                         <button mat-button (click)="complete(i)">Done</button>
-                        <button mat-icon-button aria-label="Cancel item" (click)="cancel(i)"><mat-icon>close</mat-icon></button>
+                        <button mat-icon-button aria-label="Edit or reschedule" matTooltip="Edit or reschedule" (click)="reschedule(i)">
+                          <mat-icon>edit_calendar</mat-icon>
+                        </button>
+                        <button mat-icon-button aria-label="Cancel item" matTooltip="Cancel" (click)="cancel(i)">
+                          <mat-icon>close</mat-icon>
+                        </button>
                       </span>
                     }
                   </mat-list-item>
@@ -332,7 +368,14 @@ interface Loaded<T> {
                     <span matListItemTitle>{{ f.fileName }}</span>
                     <span matListItemLine>{{ bytes(f.sizeBytes) }} · {{ f.uploadedAt | date: 'medium' }}</span>
                     <span matListItemMeta>
-                      <button mat-icon-button aria-label="Download" (click)="download(f)"><mat-icon>download</mat-icon></button>
+                      @if (f.contentType.startsWith('image/')) {
+                        <button mat-icon-button aria-label="Preview" matTooltip="Preview" (click)="preview(f)">
+                          <mat-icon>visibility</mat-icon>
+                        </button>
+                      }
+                      <button mat-icon-button aria-label="Download" matTooltip="Download" (click)="download(f)">
+                        <mat-icon>download</mat-icon>
+                      </button>
                       @if (auth.canWrite()) {
                         <button mat-icon-button aria-label="Delete attachment" (click)="removeAttachment(f)">
                           <mat-icon>delete</mat-icon>
@@ -356,7 +399,7 @@ interface Loaded<T> {
                 @for (e of h.data; track e.id) {
                   <mat-list-item>
                     <span matListItemTitle
-                      >{{ e.operation }} <span class="muted">by {{ e.actor }}</span></span
+                      >{{ e.operation }} <span class="muted">by {{ e.actor }} · {{ relativeTime(e.occurredAt) }}</span></span
                     >
                     <span matListItemLine
                       >{{ e.occurredAt | date: 'medium' }}
@@ -395,9 +438,11 @@ export class AssetDetail {
   private readonly dialog = inject(MatDialog);
   private readonly confirm = inject(Confirm);
 
+  private readonly notify = inject(Notify);
   readonly statusClass = statusClass;
   readonly urgencyClass = urgencyClass;
   readonly bytes = bytes;
+  readonly relativeTime = relativeTime;
 
   readonly asset = signal<Loaded<Asset>>({ loading: true, error: false, data: null });
   readonly maintenance = signal<Loaded<MaintenanceItem[]>>({ loading: true, error: false, data: null });
@@ -463,6 +508,65 @@ export class AssetDetail {
         void this.router.navigate(['/assets']);
       },
       error: (err: unknown) => this.fail(err, 'The asset could not be archived.'),
+    });
+  }
+
+  copyLink(): void {
+    void navigator.clipboard.writeText(window.location.href).then(
+      () => this.notify.success('Link copied.'),
+      () => this.notify.error('Could not copy the link.'),
+    );
+  }
+
+  print(): void {
+    window.print();
+  }
+
+  async deletePermanently(): Promise<void> {
+    const name = this.asset().data?.name ?? '';
+    const typed = window.prompt(
+      `This removes the asset and its attachments for good; the audit history stays. Type the asset name to confirm:\n${name}`,
+    );
+    if (typed !== name) {
+      if (typed !== null) this.notify.info('The name did not match. Nothing was deleted.');
+      return;
+    }
+    this.api.hardDelete(this.id()).subscribe({
+      next: () => {
+        this.notify.success('Asset deleted permanently.');
+        void this.router.navigate(['/assets']);
+      },
+      error: (err: unknown) => this.fail(err, 'The asset could not be deleted. Only archived assets without service history can be.'),
+    });
+  }
+
+  reschedule(item: MaintenanceItem): void {
+    this.dialog
+      .open(PlanDialog, { width: '640px', data: item })
+      .afterClosed()
+      .subscribe((req?: MaintenanceItemRequest) => {
+        if (!req) return;
+        const body = { ...req, currency: req.cost !== null ? (req.currency ?? 'CHF').toUpperCase() : null };
+        this.api.updateMaintenance(item.id, body).subscribe({
+          next: () => {
+            this.notify.success('Maintenance updated.');
+            this.reloadTabs();
+          },
+          error: (err: unknown) => this.fail(err, 'Could not update the item.'),
+        });
+      });
+  }
+
+  preview(f: Attachment): void {
+    this.api.download(f.id).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        this.dialog
+          .open(ImagePreviewDialog, { data: { url, name: f.fileName }, maxWidth: '90vw' })
+          .afterClosed()
+          .subscribe(() => URL.revokeObjectURL(url));
+      },
+      error: (err: unknown) => this.fail(err, 'Preview failed.'),
     });
   }
 

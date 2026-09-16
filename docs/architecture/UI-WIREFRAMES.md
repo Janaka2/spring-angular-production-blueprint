@@ -29,8 +29,9 @@ flowchart LR
     SHELL -->|Sign out| LOGIN
 ```
 
-Routes: `/dashboard`, `/assets`, `/assets/new`, `/assets/:id`, `/assets/:id/edit`, `/forbidden`. Everything under
-the shell needs a login (`authGuard`); an unknown URL goes to the dashboard.
+Routes: `/dashboard`, `/assets`, `/assets/new`, `/assets/:id`, `/assets/:id/edit`, `/admin/categories` (ADMIN),
+`/settings`, `/forbidden`, and a "Page not found" page for anything else. Everything under the shell needs a login
+(`authGuard`). The two forms ask before you leave with unsaved changes.
 
 ## 2. Login (Keycloak, not ours)
 
@@ -55,29 +56,41 @@ PKCE). The look is Keycloak's default theme; branding it is a Keycloak theme, no
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ▣ AssetCare   < Dashboard >  < Assets >                    ◉ Alice User  ▾   │  ← toolbar, primary colour
+│ ▣ AssetCare   < Dashboard >  < Assets >  < Categories >{ADMIN}   ?  ◉ Alice ▾ │  ← toolbar, primary colour
+│ ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ │  ← thin progress bar while any request runs
+│ ☁ You are offline. Changes cannot be saved until the connection is back.     │  ← only while offline
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │                         (page content, max ~1100 px wide)                    │
 │                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ AssetCare 1.0.0 · API 1.0.0                          Documentation · Help    │  ← footer
 └──────────────────────────────────────────────────────────────────────────────┘
 
-   Account menu ▾                     On narrow screens (< 600 px):
-   ┌───────────────────────┐          ┌────────────────────────────────┐
-   │ Roles: USER            │          │ ▣ AssetCare  Dashboard Assets ◉│  ← name hidden, icon stays
-   │ ⎋ Sign out             │          └────────────────────────────────┘
-   └───────────────────────┘
+   Account menu ▾                     On phones (< 720 px): a drawer
+   ┌───────────────────────┐          ┌──────────────────────────────┐
+   │ Alice User             │          │ ☰  ▣ AssetCare          ?  ◉ │
+   │ Roles: USER            │          ├──────────────┐               │
+   │ ⚙ Settings             │          │ ▦ Dashboard  │               │
+   │ ◐ Theme: system        │          │ ▣ Assets     │               │
+   │ ⎋ Sign out             │          │ ⚙ Settings   │               │
+   └───────────────────────┘          └──────────────┘───────────────┘
 ```
 
-The active link is highlighted. The user's name comes from the token; the roles line lets a person see why a button
-is missing.
+The active link is highlighted and announced as the current page. "?" or the help icon opens the help dialog with the
+keyboard shortcuts (`g d`, `g a`, `n`, `/`, `?`), the roles explained, and the running versions. A hidden "Skip to
+content" link appears on Tab for keyboard users; focus moves to the content after every navigation.
 
 ## 4. Dashboard (`/dashboard`)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ Hello, Alice                                            { USER, ADMIN } [ + New asset ] │
-│                                                                              │
+│ Wednesday, 16 September 2026                                                 │
+│ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐                       │
+│ │  12    │ │   9    │ │   2    │ │   1    │ │   2    │   ← tiles link to the  │
+│ │ assets │ │ ACTIVE │ │IN_REPAIR│ │RETIRED │ │ due 30d│     filtered list      │
+│ └────────┘ └────────┘ └────────┘ └────────┘ └────────┘                       │
 │ ┌────────────────────┐ ┌──────────────────────────────┐ ┌──────────────────────────────┐
 │ │ Assets             │ │ Due in the next 30 days      │ │ Warranties ending within 60 days │
 │ │                    │ │                              │ │                              │
@@ -90,8 +103,9 @@ is missing.
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Three cards; the second and third are lists whose rows open the asset. Urgency chips: `OVERDUE` (red), `DUE`
-  (amber, within 7 days), `SOON`.
+- Tiles: total, one per status, and due-soon; each opens the list with that filter. Three cards below: due soon,
+  warranties ending, and "Recently updated" (last five changes with who and when). Urgency chips: `OVERDUE` (red),
+  `DUE` (amber, within 7 days), `SOON`.
 - Empty texts: "Nothing due. Well maintained." and "No warranty is about to end."
 - The cards stack vertically on a phone.
 
@@ -101,9 +115,9 @@ States: loading (spinner), error ("The dashboard could not be loaded."), data.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ Assets                                                   { can write } [ + New asset ] │
-│                                                                              │
-│ 🔍 Search ______________________   Status [ Any (not archived) v ]  Category [ All v ] │
+│ Assets                                       ( ↻ ) ( ⤓ Export ▾ ) { can write } [ + New asset ] │
+│ 12 assets matching                                                           │
+│ 🔍 Search ________________ ✕   Status [ Any (not archived) v ]  Category [ All v ]  ( Clear filters ) │
 │                                                                              │
 │ ┌────────────────────────────────────────────────────────────────────────────┐
 │ │ Name ▲          │ Tag      │ Category │ Status    │ Warranty until │ Price     │ Updated ▾   │
@@ -117,7 +131,11 @@ States: loading (spinner), error ("The dashboard could not be loaded."), data.
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Search matches name, tag, serial, manufacturer, model as you type (debounced). Changing a filter returns to page 1.
+- Search matches name, tag, serial, manufacturer, model as you type (debounced); `/` focuses it, Esc clears it.
+  Changing a filter returns to page 1. Every filter, sort and page lives in the URL, so reload, the back button and a
+  shared link restore the same view. "Clear filters" appears when any filter is set.
+- Export: this page or every matching asset (up to 5 000) as a CSV that opens correctly in Excel.
+- The chosen rows-per-page is remembered as a preference.
 - Sortable columns: Name, Warranty until, Updated (default: Updated, newest first). Clicking or pressing Enter on a
   row opens the asset.
 - On a phone only Name, Status and Updated remain (`hide-sm`); the row shows manufacturer and model under the name.
@@ -150,9 +168,13 @@ filter and the user can write), data.
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Two columns on desktop, one on a phone. `*` required. Field errors appear under the field: client-side rules first
-  (required, length, not negative, three-letter currency), then the server's field messages from a 422 Problem
-  Details response, mapped onto the same fields.
+- Two columns on desktop, one on a phone. `*` required; the name field has focus on open. Field errors appear under
+  the field: client-side rules first (required, length, not negative, three-letter currency, warranty not before
+  purchase), then the server's field messages from a 422 Problem Details response, mapped onto the same fields.
+- Entering a price fills the preferred currency from Settings. Ctrl/⌘+S saves.
+- Leaving with unsaved changes asks first (also on tab close). A draft is autosaved locally; on return a banner
+  offers "Restore" or "Discard".
+- "Duplicate" from a detail page opens this form prefilled with "(copy)" in the name and empty tag and serial.
 - Edit loads the asset and remembers its ETag. Save sends `If-Match`. Cancel returns to the detail page (edit) or
   the list (new).
 - Save is disabled while saving ("Saving…").
@@ -194,12 +216,14 @@ Cancel keeps the form with a line "Not saved: the record was changed by someone 
 │ └────────────────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────────────┘
 
-  More ▾ menu, by current status:              Status chip colours:
-  ACTIVE     → Mark as in repair · Retire       ACTIVE green · IN_REPAIR amber
-             → Archive                          RETIRED grey  · ARCHIVED grey, struck
+  More ▾ menu:                                  Status chip colours:
+  always     → Copy link · Duplicate · Print    ACTIVE green · IN_REPAIR amber
+  ACTIVE     → Mark as in repair · Retire       RETIRED grey  · ARCHIVED grey, struck
+             → Archive
   IN_REPAIR  → Back in service · Retire · Archive
   RETIRED    → Archive
-  ARCHIVED   → Restore { ADMIN }
+  ARCHIVED   → Restore { ADMIN } · Delete permanently { ADMIN, typed confirmation }
+  Read-only users get Copy link and Print as icons instead of the menu.
 ```
 
 The version `v3` in the subtitle is the optimistic-lock version. Every action from this page sends it as `If-Match`;
@@ -212,7 +236,7 @@ page refreshes.
 │ { can write, not archived } [ 📅 Plan maintenance ]                               │
 │                                                                                    │
 │ ▸ Oil change                                                    OVERDUE            │
-│   SERVICE · due 3 Oct 2026 · repeats P6M · Garage Müller     ( Done ) ( ✕ )        │
+│   SERVICE · due 3 Oct 2026 · repeats P6M · Garage Müller  ( Done ) ( 📅 ) ( ✕ )    │
 │ ▸ Clean fans                                                    SOON               │
 │   CLEANING · due 30 Oct 2026                                  ( Done ) ( ✕ )        │
 │                                                                                    │
@@ -220,7 +244,8 @@ page refreshes.
 ```
 
 `Done` opens the Record service dialog pre-filled from the item; on save the item becomes DONE and, if it repeats, a
-new PLANNED item appears with the next due date. `✕` cancels after a confirm dialog.
+new PLANNED item appears with the next due date. `📅` opens the same dialog as Plan, prefilled, to edit or reschedule.
+`✕` cancels after a confirm dialog.
 
 **Plan maintenance dialog**
 
@@ -267,19 +292,19 @@ new PLANNED item appears with the next due date. `✕` cancels after a confirm d
 ```
 │ { can write, not archived } ( 📎 Upload )   PDF, JPEG, PNG, WebP, text · up to 10 MB │
 │                                                                                    │
-│ ▸ invoice-2025.pdf                    application/pdf · 212 KB · alice · 3 Mar 2025  ( ⤓ ) │
-│ ▸ photo.jpg                           image/jpeg · 1.4 MB · alice · 3 Mar 2025      ( ⤓ ) │
+│ ▸ invoice-2025.pdf                    application/pdf · 212 KB · alice · 3 Mar 2025      ( ⤓ ) │
+│ ▸ photo.jpg                           image/jpeg · 1.4 MB · alice · 3 Mar 2025    ( 👁 ) ( ⤓ ) │
 │                                                                                    │
 │ empty: "No documents or photos yet. PDF, JPEG, PNG, WebP and text up to 10 MB."     │
 ```
 
 Upload shows "Uploading…" and disables the button; a wrong type or size is refused by the API with a message under
-the button. Download streams the file with its original name.
+the button. Images have a Preview that opens them in a dialog. Download streams the file with its original name.
 
 ### History tab (audit trail)
 
 ```
-│ ▸ UPDATE  by alice                                     12 Sep 2026, 14:31           │
+│ ▸ UPDATE  by alice · 4 days ago                        12 Sep 2026, 14:31           │
 │     status: IN_REPAIR → ACTIVE                                                     │
 │     location: Office → Home office                                                 │
 │ ▸ COMPLETE  by alice                                   12 Sep 2026, 14:20           │
@@ -290,7 +315,51 @@ the button. Download streams the file with its original name.
 
 Each entry is one `audit_event` row: operation, actor, time, and the changed fields as `before → after`.
 
-## 8. Not allowed (`/forbidden`)
+## 8. Categories (`/admin/categories`, ADMIN only)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Categories                                                  [ + New category ] │
+│ Reference data for every asset. Inactive categories stay on existing assets… │
+│ ┌────────────────────────────────────────────────────────────────────────────┐
+│ │ Order │ Code       │ Name                       │ Status   │              │
+│ │ 10    │ COMPUTER   │ Computer                   │ ACTIVE   │ ( ✎ ) ( 👁 ) │
+│ │ 20    │ VEHICLE    │ Vehicle · cars, bikes      │ ACTIVE   │ ( ✎ ) ( 👁 ) │
+│ │ 90    │ OTHER      │ Other                      │ INACTIVE │ ( ✎ ) ( 👁 ) │
+│ └────────────────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  New / Edit category dialog:
+  ┌──────────────────────────────────────────────────────────┐
+  │ New category                                             │
+  │ Code * ________ (VEHICLE; cannot change later)  Name * ________ │
+  │ Description ____________________________________________ │
+  │ Sort order ___  (lower comes first)   (●) Active         │
+  │                                       ( Cancel ) [ Save ] │
+  └──────────────────────────────────────────────────────────┘
+```
+
+Deactivate instead of delete: existing assets keep the category; new assets cannot pick it.
+
+## 9. Settings (`/settings`)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Settings                                                                     │
+│ ┌ Account ───────────────┐ ┌ Appearance ────────────┐ ┌ Defaults ───────────┐ │
+│ │ Signed in as  alice    │ │ Theme  [System|Light|Dark] │ Rows per page [20 v]│ │
+│ │ Roles         USER     │ │ Density [Comfortable|Compact] │ Default currency CHF │ │
+│ │ User id       1000…    │ │                        │ │ ( Reset to defaults )│ │
+│ │ ( Sign out )           │ └────────────────────────┘ └─────────────────────┘ │
+│ └────────────────────────┘ ┌ Keyboard shortcuts ────┐ ┌ About ──────────────┐ │
+│                            │ g then d  Dashboard …  │ │ UI 1.0.0 · API 1.0.0│ │
+│                            └────────────────────────┘ └─────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+Preferences are stored in this browser only; identity (name, password) is managed in Keycloak.
+
+## 10. Not allowed (`/forbidden`) and Page not found
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -304,7 +373,7 @@ Each entry is one `audit_event` row: operation, actor, time, and the changed fie
 Reached when a guard blocks a route (for example an AUDITOR opening `/assets/new` by URL). Controls the role cannot
 use are hidden everywhere, and if a request still gets a 403, the same page appears.
 
-## 9. Shared states and messages
+## 11. Shared states and messages
 
 | State | How it looks | Where |
 |---|---|---|
@@ -317,28 +386,31 @@ use are hidden everywhere, and if a request still gets a 403, the same page appe
 | New version deployed | snackbar "A new version is available. Reload to continue." with a Reload button | any page, when a lazy chunk from the old release is gone |
 | Confirm | dialog with Cancel and a primary or red action | archive, cancel maintenance, restore |
 
-## 10. Who sees what
+## 12. Who sees what
 
 | Control | USER | ADMIN | AUDITOR |
 |---|---|---|---|
 | Dashboard, list, detail, all tabs | own assets | all assets | all assets, read only |
 | New asset, Edit, Plan, Done, Record, Upload, status changes, Archive | ✓ | ✓ | hidden |
 | Restore an archived asset | hidden | ✓ | hidden |
-| Hard delete | not in the UI (API only, ADMIN) | | |
+| Delete permanently (archived, typed confirmation) | hidden | ✓ | hidden |
+| Categories page | hidden | ✓ | hidden |
+| Copy link, Print, Export CSV, Settings | ✓ | ✓ | ✓ |
 
 `canWrite()` is true for USER and ADMIN; `isAdmin()` only for ADMIN. The API enforces the same rules through
 `AuthorizationPolicy`, so hiding a button is a courtesy, never the security boundary.
 
-## 11. Accessibility and responsiveness
+## 13. Accessibility and responsiveness
 
 - Every icon-only button has an `aria-label`; the table has `aria-label="Assets"` and rows are focusable and open
   with Enter; dialogs trap focus and return it on close (Material CDK).
 - Colour is never the only signal: status chips carry the word, urgency chips carry the word.
-- Breakpoint 600 px: the toolbar hides the user name, the table drops to three columns, form grids and dashboard
-  cards become one column.
+- Breakpoint 720 px: navigation becomes a drawer; 600 px: the table drops to three columns, form grids and
+  dashboard cards become one column. Reduced-motion preference disables animations. Print styles hide chrome.
+- Theme follows the system or the user's choice; density can be compact for dense tables.
 - Dates and money are formatted for the browser locale; the API stores ISO dates and `numeric` amounts.
 
-## 12. Changing a screen
+## 14. Changing a screen
 
 Components live in `frontend/src/app/features/<area>/`; shared states in `frontend/src/app/shared/`. Every new
 screen needs the four states of section 9, a Vitest spec, and a row in section 10 if it has a role-gated control.

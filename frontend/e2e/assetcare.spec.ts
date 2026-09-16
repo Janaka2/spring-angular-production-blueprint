@@ -75,7 +75,60 @@ test.describe.serial('AssetCare workflow', () => {
     await page.getByRole('button', { name: 'Archive' }).click();
     await page.waitForURL(/\/assets$/);
     await page.getByLabel('Search').fill(suffix);
-    await expect(page.getByText('No assets match.')).toBeVisible();
+    await expect(page.getByText('No assets match these filters.')).toBeVisible();
+  });
+
+  test('filters live in the URL, and the list exports CSV', async ({ page }) => {
+    await loginThroughKeycloak(page, 'alice', 'alice-dev-password');
+    await page.goto('/assets?status=IN_REPAIR&sort=name,asc');
+    await expect(page.getByLabel('Status')).toContainText('In repair');
+    await page.getByLabel('Search').fill('zzz-no-such-asset');
+    await expect(page).toHaveURL(/q=zzz-no-such-asset/);
+    await expect(page.getByText('No assets match these filters.')).toBeVisible();
+    await page.getByRole('button', { name: /clear filters/i }).click();
+    await expect(page).not.toHaveURL(/q=/);
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: /export/i }).click();
+    await page.getByRole('menuitem', { name: /this page as csv/i }).click();
+    expect((await download).suggestedFilename()).toMatch(/^assets-\d{4}-\d{2}-\d{2}\.csv$/);
+  });
+
+  test('leaving a dirty form asks first, and a draft can be restored', async ({ page }) => {
+    await loginThroughKeycloak(page, 'alice', 'alice-dev-password');
+    await page.goto('/assets/new');
+    await page.getByLabel('Name').fill(`Draft ${suffix}`);
+    page.once('dialog', (d) => void d.dismiss()); // "leave and discard?" → stay
+    await page.getByRole('link', { name: 'Assets' }).click();
+    await expect(page).toHaveURL(/\/assets\/new$/);
+    await page.reload();
+    await expect(page.getByText(/unsaved draft/i)).toBeVisible();
+    await page.getByRole('button', { name: 'Restore' }).click();
+    await expect(page.getByLabel('Name')).toHaveValue(`Draft ${suffix}`);
+    await page.getByRole('button', { name: 'Discard' }).count(); // banner gone after restore; discard not needed
+  });
+
+  test('an admin manages categories; a user does not see the page', async ({ page }) => {
+    await loginThroughKeycloak(page, 'admin', 'admin-dev-password');
+    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('button', { name: /new category/i }).click();
+    await page.getByLabel('Code').fill(`E2E_${suffix.toUpperCase()}`);
+    await page.getByLabel('Name').fill(`E2E category ${suffix}`);
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByRole('cell', { name: `E2E category ${suffix}` })).toBeVisible();
+    await page
+      .getByRole('button', { name: /deactivate category/i })
+      .last()
+      .click();
+    await expect(page.getByText('INACTIVE').first()).toBeVisible();
+  });
+
+  test('settings change the theme and rows per page', async ({ page }) => {
+    await loginThroughKeycloak(page, 'alice', 'alice-dev-password');
+    await page.goto('/settings');
+    await page.getByRole('button', { name: 'Dark' }).click();
+    await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
+    await page.goto('/assets/nope-not-a-real-id-or-page/extra');
+    await expect(page.getByRole('heading', { name: /page not found/i })).toBeVisible();
   });
 
   test('an auditor can read everything and change nothing', async ({ page }) => {

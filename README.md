@@ -10,6 +10,12 @@ authentication, migrations, Docker, Kubernetes, monitoring, testing and CI/CD. C
 there, and evolve it. It is also the reference project for the [Janaka Academy](https://janaka.me/academy/) course
 *From CRUD to Production*, told as a seven-course meal.
 
+**What does the UI do?** Dashboard with status tiles and due work; assets with search, filters, sort and paging kept
+in the URL, CSV export, create, edit with conflict detection, drafts and unsaved-change protection; detail with
+maintenance planning and rescheduling, service history, attachments with image preview, and the audit trail; category
+administration; settings for theme, density and defaults; keyboard shortcuts; offline and new-version notices;
+accessible and phone-ready. `docs/architecture/UI-WIREFRAMES.md` shows every screen.
+
 **What will I learn?** Clean architecture with enforced boundaries, optimistic locking and idempotency, Problem
 Details errors, OIDC with PKCE and a resource server, structured logs correlated with traces and metrics, Testcontainers,
 ArchUnit, Playwright, k6, non-root multi-arch images, Helm, K3s, TLS with cert-manager, backup and restore, and the
@@ -117,10 +123,10 @@ Updated at the end of each course. Only executed checks are marked PASS.
 ```text
 Executed by the author (2026-09-16, macOS, no Docker daemon available):
 Backend compile (Java 25, Spring Boot 4.1.1)        PASS   ./mvnw compile
-Backend unit + architecture tests                   PASS   21 tests: domain, use cases, ArchUnit
-Frontend build (Angular 22.1)                       PASS   ng build, 548 kB initial, under budget
+Backend unit + architecture tests                   PASS   23 tests: domain, use cases, health, ArchUnit
+Frontend build (Angular 22.1)                       PASS   ng build, 559 kB initial, under budget
 Frontend lint + format (angular-eslint, Prettier)   PASS
-Frontend unit tests (Vitest)                        PASS   10 tests
+Frontend unit tests (Vitest)                        PASS   21 tests
 Helm lint (Helm 4.3.0)                              PASS   0 charts failed
 Helm template, core values                          PASS   19 objects rendered
 Helm template, enterprise values (external DB/IdP/  PASS   10 objects rendered, no development password in output

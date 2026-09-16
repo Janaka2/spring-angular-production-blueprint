@@ -10,6 +10,7 @@ import {
   Attachment,
   AuditEvent,
   Category,
+  CategoryRequest,
   Dashboard,
   MaintenanceItem,
   MaintenanceItemRequest,
@@ -124,6 +125,22 @@ export class AssetsApi {
 
   categories(): Observable<Category[]> {
     return this.http.get<Category[]>(`${this.base}/categories`);
+  }
+
+  createCategory(req: CategoryRequest): Observable<Category> {
+    return this.http.post<Category>(`${this.base}/categories`, req);
+  }
+
+  updateCategory(id: string, req: CategoryRequest): Observable<Category> {
+    return this.http.put<Category>(`${this.base}/categories/${id}`, req);
+  }
+
+  updateMaintenance(itemId: string, req: MaintenanceItemRequest): Observable<MaintenanceItem> {
+    return this.http.put<MaintenanceItem>(`${this.base}/maintenance/${itemId}`, req);
+  }
+
+  hardDelete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/assets/${id}/permanent`);
   }
 
   dashboard(): Observable<Dashboard> {

@@ -17,6 +17,10 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       if (err instanceof HttpErrorResponse) {
         if (err.status === 401) {
           auth.login(window.location.pathname);
+        } else if (err.status === 403) {
+          snack.open('Your role does not allow this action.', 'Close', { duration: 6000 });
+        } else if (err.status === 429) {
+          snack.open('Too many requests. Please wait a moment and try again.', 'Close', { duration: 6000 });
         } else if (err.status === 0) {
           snack.open('The server cannot be reached. Check your connection and try again.', 'Close', { duration: 6000 });
         } else if (err.status >= 500) {

@@ -95,7 +95,7 @@ These are the improvements the author knows about. None blocks phases 1 to 5; ea
 | # | Improvement | Why | Where |
 |---|---|---|---|
 | 6.1 | Execute everything marked *written* above at least once and flip it to *done* in this table and in the README report | a reference nobody has run is a hypothesis | phases 1, 2, 4 |
-| 6.2 | Extend Playwright to attachments (upload, download) and to the ADMIN restore path | today the e2e covers create/maintain/conflict/auditor only; uploads are covered by the API IT | `frontend/e2e/assetcare.spec.ts` |
+| 6.2 | Extend Playwright to attachments (upload, download, preview) and to the ADMIN restore and permanent-delete paths | the e2e now covers create/maintain/conflict/auditor, URL filters and CSV export, drafts and unsaved-change guard, category administration, settings and not-found (7 tests); uploads are covered by the API IT | `frontend/e2e/assetcare.spec.ts` |
 | 6.3 | Run k6 in CI on a schedule against a compose stack and store the trend | latency regressions found by a machine, not by users | `.github/workflows`, `performance/` |
 | 6.4 | Scheduled synthetic login (Playwright against production, nightly) | the only check that proves Keycloak + API + SPA together, from outside | `HEALTH-MONITORING.md` §6 |
 | 6.5 | Idempotency-key cleanup job and audit-event archiving by date | the two tables that grow without bound | `HOW-TO-MODIFY.md` "scheduled job" |
@@ -103,7 +103,9 @@ These are the improvements the author knows about. None blocks phases 1 to 5; ea
 | 6.7 | Secrets from a vault (External Secrets Operator + OCI Vault) instead of a hand-made Secret | rotation and audit of secrets | `DEPLOYMENT.md` §3 |
 | 6.8 | Second node, PodDisruptionBudgets, HPA on | zero-downtime node maintenance; real scaling | `SCALING.md`, `values.yaml` |
 | 6.9 | Argo CD watching the chart | every change to production is a Git commit with a reviewer | `DEPLOYMENT.md` §7 |
-| 6.10 | Frontend error reporting to a backend endpoint or a service | today errors go to the user's console only | `frontend/src/app/core/error-handler.ts` |
+| 6.10 | Frontend error reporting to a backend endpoint or a service | today errors go to the user's console and a toast only | `frontend/src/app/core/error-handler.ts` |
+| 6.15 | Bulk actions on the list (multi-select archive, change status, export selection) and saved filter views | single-item actions only today; the URL-state design makes saved views a small step | `asset-list.ts` |
+| 6.16 | Server-side user preferences (`/api/v1/me/preferences`) so theme, density and defaults follow the person across devices | preferences are per browser today (`PreferencesService`) | new endpoint + `preferences.ts` |
 | 6.11 | Second locale, and a Keycloak theme with the product's look | the SPA is structured for it; the login page is Keycloak's default | `frontend/`, Keycloak theme |
 | 6.12 | Multi-tenancy (`tenant_id`) when organisations, not people, own assets | the model is single-tenant by decision | `docs/academy/ROADMAP.md` assumption 1, new ADR |
 | 6.13 | Rate-limit and abuse alerts at the edge (Traefik metrics) | today rate limiting exists but is not observed | `observability/prometheus/rules.yml` |

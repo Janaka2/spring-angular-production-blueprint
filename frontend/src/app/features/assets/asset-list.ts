@@ -1,6 +1,6 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatTableModule } from '@angular/material/table';
@@ -12,12 +12,17 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatMenuModule } from '@angular/material/menu';
 import { debounceTime, distinctUntilChanged, startWith } from 'rxjs';
 import { AssetsApi } from '../../core/api/assets.api';
 import { Asset, AssetStatus, Category, Page } from '../../core/api/models';
 import { AuthService } from '../../core/auth/auth.service';
 import { Loading, Empty, ErrorState } from '../../shared/state';
-import { statusClass } from '../../shared/format';
+import { statusClass, toCsv, downloadText } from '../../shared/format';
+import { PreferencesService } from '../../core/ui/preferences';
+import { Shortcuts } from '../../core/ui/shortcuts';
+import { Notify } from '../../core/ui/notify';
 
 /**
  * Search, filter, sort and paginate assets. Every input is a signal; a computed query drives one HTTP call per change.
@@ -39,6 +44,8 @@ import { statusClass } from '../../shared/format';
     MatButtonModule,
     MatIconModule,
     MatCheckboxModule,
+    MatTooltipModule,
+    MatMenuModule,
     Loading,
     Empty,
     ErrorState,
@@ -46,16 +53,47 @@ import { statusClass } from '../../shared/format';
   template: `
     <div class="page">
       <div class="page-title">
-        <h1>Assets</h1>
-        @if (auth.canWrite()) {
-          <a mat-flat-button routerLink="/assets/new"><mat-icon>add</mat-icon> New asset</a>
-        }
+        <div>
+          <h1>Assets</h1>
+          @if (result().data; as d) {
+            <span class="count" aria-live="polite"
+              >{{ d.totalItems }} {{ d.totalItems === 1 ? 'asset' : 'assets' }}
+              @if (hasFilter()) {
+                matching
+              }
+            </span>
+          }
+        </div>
+        <div class="actions" style="margin:0">
+          <button mat-icon-button (click)="reload()" aria-label="Refresh" matTooltip="Refresh"><mat-icon>refresh</mat-icon></button>
+          <button mat-stroked-button [matMenuTriggerFor]="exportMenu" [disabled]="!result().data?.totalItems" aria-label="Export">
+            <mat-icon>download</mat-icon> Export
+          </button>
+          <mat-menu #exportMenu="matMenu">
+            <button mat-menu-item (click)="exportCsv(false)">This page as CSV</button>
+            <button mat-menu-item (click)="exportCsv(true)">All matching assets as CSV</button>
+          </mat-menu>
+          @if (auth.canWrite()) {
+            <a mat-flat-button routerLink="/assets/new"><mat-icon>add</mat-icon> New asset</a>
+          }
+        </div>
       </div>
       <div class="toolbar-row">
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Search</mat-label>
-          <input matInput [formControl]="search" placeholder="name, tag, serial, manufacturer, model" autocomplete="off" />
-          <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+          <input
+            matInput
+            #searchBox
+            [formControl]="search"
+            placeholder="name, tag, serial, manufacturer, model"
+            autocomplete="off"
+            (keydown.escape)="search.setValue('')"
+          />
+          @if (search.value) {
+            <button matSuffix mat-icon-button aria-label="Clear search" (click)="search.setValue('')"><mat-icon>close</mat-icon></button>
+          } @else {
+            <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+          }
         </mat-form-field>
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Status</mat-label>
@@ -76,6 +114,9 @@ import { statusClass } from '../../shared/format';
             }
           </mat-select>
         </mat-form-field>
+        @if (hasFilter()) {
+          <button mat-button (click)="clearFilters()"><mat-icon>filter_alt_off</mat-icon> Clear filters</button>
+        }
       </div>
 
       @let r = result();
@@ -84,8 +125,10 @@ import { statusClass } from '../../shared/format';
       } @else if (r.error) {
         <app-error-state message="Assets could not be loaded." [retry]="reload" />
       } @else if (r.data && r.data.totalItems === 0) {
-        <app-empty icon="inventory_2" message="No assets match.">
-          @if (auth.canWrite() && !search.value && !status()) {
+        <app-empty icon="inventory_2" [message]="hasFilter() ? 'No assets match these filters.' : 'No assets yet.'">
+          @if (hasFilter()) {
+            <button mat-stroked-button (click)="clearFilters()">Clear filters</button>
+          } @else if (auth.canWrite()) {
             <a mat-stroked-button routerLink="/assets/new">Add your first asset</a>
           }
         </app-empty>
@@ -135,7 +178,16 @@ import { statusClass } from '../../shared/format';
             <td mat-cell *matCellDef="let a">{{ a.updatedAt | date: 'mediumDate' }}</td>
           </ng-container>
           <tr mat-header-row *matHeaderRowDef="columns"></tr>
-          <tr mat-row *matRowDef="let a; columns: columns" class="row-link" tabindex="0" (click)="open(a)" (keydown.enter)="open(a)"></tr>
+          <tr
+            mat-row
+            *matRowDef="let a; columns: columns"
+            class="row-link"
+            tabindex="0"
+            role="link"
+            [attr.aria-label]="'Open ' + a.name"
+            (click)="open(a)"
+            (keydown.enter)="open(a)"
+          ></tr>
         </table>
         <mat-paginator
           [length]="r.data.totalItems"
@@ -153,23 +205,30 @@ export class AssetList {
   readonly auth = inject(AuthService);
   private readonly api = inject(AssetsApi);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly prefs = inject(PreferencesService);
+  private readonly shortcuts = inject(Shortcuts);
+  private readonly notify = inject(Notify);
+  private readonly searchBox = viewChild<ElementRef<HTMLInputElement>>('searchBox');
 
   readonly columns = ['name', 'assetTag', 'category', 'status', 'warrantyUntil', 'purchasePrice', 'updatedAt'];
   readonly statusClass = statusClass;
 
-  readonly search = new FormControl('', { nonNullable: true });
-  private readonly searchValue = toSignal(this.search.valueChanges.pipe(debounceTime(300), distinctUntilChanged(), startWith('')), {
-    initialValue: '',
-  });
-  readonly status = signal<AssetStatus | ''>('');
-  readonly categoryId = signal('');
-  readonly page = signal(0);
-  readonly size = signal(20);
-  readonly sortField = signal('updatedAt');
-  readonly sortDir = signal<'asc' | 'desc'>('desc');
+  readonly search = new FormControl(this.route.snapshot.queryParamMap.get('q') ?? '', { nonNullable: true });
+  private readonly searchValue = toSignal(
+    this.search.valueChanges.pipe(debounceTime(300), distinctUntilChanged(), startWith(this.search.value)),
+    { initialValue: this.search.value },
+  );
+  readonly status = signal<AssetStatus | ''>(asStatus(this.route.snapshot.queryParamMap.get('status')));
+  readonly categoryId = signal(this.route.snapshot.queryParamMap.get('category') ?? '');
+  readonly page = signal(Number(this.route.snapshot.queryParamMap.get('page') ?? 0) || 0);
+  readonly size = signal(Number(this.route.snapshot.queryParamMap.get('size') ?? 0) || this.prefs.value().pageSize);
+  readonly sortField = signal(this.route.snapshot.queryParamMap.get('sort')?.split(',')[0] ?? 'updatedAt');
+  readonly sortDir = signal<'asc' | 'desc'>(this.route.snapshot.queryParamMap.get('sort')?.split(',')[1] === 'asc' ? 'asc' : 'desc');
 
   readonly categories = signal<Category[]>([]);
   readonly result = signal<{ loading: boolean; error: boolean; data: Page<Asset> | null }>({ loading: true, error: false, data: null });
+  readonly hasFilter = computed(() => !!this.searchValue() || !!this.status() || !!this.categoryId());
 
   private readonly query = computed(() => ({
     search: this.searchValue(),
@@ -182,7 +241,7 @@ export class AssetList {
   }));
 
   constructor() {
-    this.api.categories().subscribe({ next: (c) => this.categories.set(c.filter((x) => x.active)) });
+    this.api.categories().subscribe({ next: (c) => this.categories.set(c) });
     effect(() => {
       const q = this.query();
       this.result.update((r) => ({ ...r, loading: true, error: false }));
@@ -190,14 +249,44 @@ export class AssetList {
         next: (data) => this.result.set({ loading: false, error: false, data }),
         error: () => this.result.set({ loading: false, error: true, data: null }),
       });
+      // the URL is the state: reload, back button and shared links all restore this exact view
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        replaceUrl: true,
+        queryParams: {
+          q: q.search || null,
+          status: q.status || null,
+          category: q.categoryId || null,
+          page: q.page || null,
+          size: q.size === this.prefs.value().pageSize ? null : q.size,
+          sort: q.sort === 'updatedAt,desc' ? null : q.sort,
+        },
+      });
+    });
+    effect(() => {
+      if (this.shortcuts.focusSearch() > 0) this.searchBox()?.nativeElement.focus();
     });
   }
 
-  readonly reload = (): void => this.page.set(this.page());
+  readonly reload = (): void => {
+    this.result.update((r) => ({ ...r, loading: true, error: false }));
+    this.api.list(this.query()).subscribe({
+      next: (data) => this.result.set({ loading: false, error: false, data }),
+      error: () => this.result.set({ loading: false, error: true, data: null }),
+    });
+  };
+
+  clearFilters(): void {
+    this.search.setValue('');
+    this.status.set('');
+    this.categoryId.set('');
+    this.page.set(0);
+  }
 
   onPage(e: PageEvent): void {
     this.size.set(e.pageSize);
     this.page.set(e.pageIndex);
+    if (e.pageSize === 10 || e.pageSize === 20 || e.pageSize === 50) this.prefs.set('pageSize', e.pageSize);
   }
 
   onSort(s: Sort): void {
@@ -209,4 +298,52 @@ export class AssetList {
   open(a: Asset): void {
     void this.router.navigate(['/assets', a.id]);
   }
+
+  /** CSV of the current page, or of every asset matching the filter (fetched page by page, up to 5 000 rows). */
+  exportCsv(all: boolean): void {
+    const rows = (items: Asset[]) =>
+      items.map((a) => ({
+        name: a.name,
+        tag: a.assetTag ?? '',
+        category: a.category.name,
+        status: a.status,
+        manufacturer: a.manufacturer ?? '',
+        model: a.model ?? '',
+        serial: a.serialNumber ?? '',
+        purchaseDate: a.purchaseDate ?? '',
+        price: a.purchasePrice ?? '',
+        currency: a.currency ?? '',
+        warrantyUntil: a.warrantyUntil ?? '',
+        location: a.location ?? '',
+        updatedAt: a.updatedAt,
+        id: a.id,
+      }));
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (!all) {
+      downloadText(`assets-${stamp}.csv`, toCsv(rows(this.result().data?.items ?? [])), 'text/csv');
+      return;
+    }
+    const q = { ...this.query(), page: 0, size: 100 };
+    const collected: Asset[] = [];
+    const next = (): void => {
+      this.api.list(q).subscribe({
+        next: (p) => {
+          collected.push(...p.items);
+          if (p.page + 1 < p.totalPages && collected.length < 5000) {
+            q.page += 1;
+            next();
+          } else {
+            downloadText(`assets-${stamp}.csv`, toCsv(rows(collected)), 'text/csv');
+            this.notify.success(`Exported ${collected.length} assets.`);
+          }
+        },
+        error: () => this.notify.error('The export could not be completed.'),
+      });
+    };
+    next();
+  }
+}
+
+function asStatus(v: string | null): AssetStatus | '' {
+  return v === 'ACTIVE' || v === 'IN_REPAIR' || v === 'RETIRED' || v === 'ARCHIVED' ? v : '';
 }

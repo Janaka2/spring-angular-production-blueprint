@@ -1,0 +1,10 @@
+{
+  "name": "AssetCare",
+  "short_name": "AssetCare",
+  "description": "Keep track of the things you own and the maintenance they need.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0b57d0",
+  "icons": [{ "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

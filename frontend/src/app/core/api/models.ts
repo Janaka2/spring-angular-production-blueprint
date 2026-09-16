@@ -12,6 +12,14 @@ export interface Category {
   sortOrder: number;
 }
 
+export interface CategoryRequest {
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+
 export interface Asset {
   id: string;
   name: string;

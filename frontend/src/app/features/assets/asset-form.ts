@@ -1,6 +1,6 @@
-import { Component, inject, input, signal } from '@angular/core';
-import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Component, effect, ElementRef, HostListener, inject, input, signal, viewChild } from '@angular/core';
+import { AbstractControl, NonNullableFormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -9,8 +9,14 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { debounceTime } from 'rxjs';
+import { HasUnsavedChanges } from '../../core/ui/unsaved-changes.guard';
+import { PreferencesService } from '../../core/ui/preferences';
+import { storage } from '../../core/ui/storage';
 import { AssetsApi } from '../../core/api/assets.api';
-import { AssetRequest, Category } from '../../core/api/models';
+import { Asset, AssetRequest, Category } from '../../core/api/models';
 import { asProblem, problemCode } from '../../core/api/problem';
 import { Loading } from '../../shared/state';
 import { Confirm } from '../../shared/confirm-dialog';
@@ -31,9 +37,28 @@ import { idempotencyKey } from '../../shared/format';
     MatButtonModule,
     MatDatepickerModule,
     MatCardModule,
+    MatIconModule,
     Loading,
   ],
   providers: [provideNativeDateAdapter()],
+  styles: `
+    .draft {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      background: var(--mat-sys-secondary-container);
+      color: var(--mat-sys-on-secondary-container);
+    }
+    .hint {
+      align-self: center;
+      font-size: 12px;
+      margin-right: auto;
+    }
+  `,
   template: `
     <div class="page">
       <div class="page-title">
@@ -42,13 +67,21 @@ import { idempotencyKey } from '../../shared/format';
       @if (loading()) {
         <app-loading />
       } @else {
+        @if (draftAvailable()) {
+          <div class="draft" role="status">
+            <mat-icon aria-hidden="true">history</mat-icon>
+            <span>You have an unsaved draft from {{ draftAge() }}.</span>
+            <button mat-button (click)="restoreDraft()">Restore</button>
+            <button mat-button (click)="discardDraft()">Discard</button>
+          </div>
+        }
         <mat-card appearance="outlined">
           <mat-card-content>
             <form [formGroup]="form" (ngSubmit)="save()" novalidate>
               <div class="form-grid">
                 <mat-form-field appearance="outline" class="full">
                   <mat-label>Name</mat-label>
-                  <input matInput formControlName="name" maxlength="120" required />
+                  <input matInput #nameBox formControlName="name" maxlength="120" required cdkFocusInitial />
                   <mat-error>{{ error('name') ?? 'Name is required' }}</mat-error>
                 </mat-form-field>
                 <mat-form-field appearance="outline">
@@ -86,7 +119,7 @@ import { idempotencyKey } from '../../shared/format';
                   <mat-label>Warranty until</mat-label>
                   <input matInput [matDatepicker]="wd" formControlName="warrantyUntil" />
                   <mat-datepicker-toggle matIconSuffix [for]="wd" /><mat-datepicker #wd />
-                  <mat-error>{{ error('warrantyUntil') }}</mat-error>
+                  <mat-error>{{ error('warrantyUntil') ?? 'Must be on or after the purchase date' }}</mat-error>
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                   <mat-label>Purchase price</mat-label>
@@ -115,6 +148,7 @@ import { idempotencyKey } from '../../shared/format';
                 <p class="mat-error" role="alert">{{ formError() }}</p>
               }
               <div class="actions">
+                <span class="muted hint hide-sm">Ctrl/⌘ + S saves</span>
                 <a mat-button [routerLink]="id() ? ['/assets', id()] : ['/assets']">Cancel</a>
                 <button mat-flat-button type="submit" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
               </div>
@@ -125,8 +159,11 @@ import { idempotencyKey } from '../../shared/format';
     </div>
   `,
 })
-export class AssetForm {
+export class AssetForm implements HasUnsavedChanges {
   readonly id = input<string>();
+  private readonly route = inject(ActivatedRoute);
+  private readonly prefs = inject(PreferencesService);
+  private readonly nameBox = viewChild<ElementRef<HTMLInputElement>>('nameBox');
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly api = inject(AssetsApi);
   private readonly router = inject(Router);
@@ -140,6 +177,13 @@ export class AssetForm {
   private readonly fieldErrors = signal<Record<string, string>>({});
   private etag = '';
   private key = idempotencyKey();
+  private saved = false;
+  private loadedValue = '';
+  readonly draftAvailable = signal(false);
+  readonly draftAge = signal('');
+  private get draftKey(): string {
+    return `assetcare.draft.${this.id() ?? 'new'}`;
+  }
 
   readonly form = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
@@ -156,10 +200,64 @@ export class AssetForm {
     description: ['', Validators.maxLength(2000)],
     notes: ['', Validators.maxLength(4000)],
   });
+  private readonly changes = toSignal(this.form.valueChanges.pipe(debounceTime(500)), { initialValue: null });
 
   constructor() {
+    this.form.addValidators(warrantyAfterPurchase);
     this.api.categories().subscribe({ next: (c) => this.categories.set(c.filter((x) => x.active)) });
     queueMicrotask(() => this.load());
+    // draft autosave: a browser crash or an accidental tab close must not cost a half-filled form
+    effect(() => {
+      this.changes();
+      if (this.loading() || this.saved) return;
+      if (this.hasUnsavedChanges()) {
+        storage.set(this.draftKey, JSON.stringify({ at: Date.now(), value: this.form.getRawValue() }));
+      }
+    });
+    // price entered without a currency: use the preferred one
+    effect(() => {
+      this.changes();
+      const price = this.form.controls.purchasePrice.value;
+      if (price !== null && !this.form.controls.currency.value) this.form.controls.currency.setValue(this.prefs.value().defaultCurrency);
+    });
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(e: BeforeUnloadEvent): void {
+    if (this.hasUnsavedChanges()) e.preventDefault();
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(e: KeyboardEvent): void {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      this.save();
+    }
+  }
+
+  hasUnsavedChanges(): boolean {
+    return !this.saved && !this.loading() && JSON.stringify(this.form.getRawValue()) !== this.loadedValue;
+  }
+
+  restoreDraft(): void {
+    const d = readDraft(this.draftKey);
+    if (d) this.form.patchValue(reviveDates(d.value));
+    this.draftAvailable.set(false);
+  }
+
+  discardDraft(): void {
+    storage.remove(this.draftKey);
+    this.draftAvailable.set(false);
+  }
+
+  private markLoaded(): void {
+    this.loadedValue = JSON.stringify(this.form.getRawValue());
+    const d = readDraft(this.draftKey);
+    if (d && JSON.stringify(d.value) !== this.loadedValue) {
+      this.draftAvailable.set(true);
+      this.draftAge.set(new Date(d.at).toLocaleString());
+    }
+    setTimeout(() => this.nameBox()?.nativeElement.focus(), 0);
   }
 
   error(field: string): string | null {
@@ -169,28 +267,32 @@ export class AssetForm {
   private load(): void {
     const id = this.id();
     if (!id) {
+      const from = this.route.snapshot.queryParamMap.get('from');
+      if (from) {
+        this.api.get(from).subscribe({
+          next: ({ body }) => {
+            this.patchFrom(body);
+            this.form.patchValue({ name: `${body.name} (copy)`, assetTag: '', serialNumber: '' });
+            this.loading.set(false);
+            this.markLoaded();
+          },
+          error: () => {
+            this.loading.set(false);
+            this.markLoaded();
+          },
+        });
+        return;
+      }
       this.loading.set(false);
+      this.markLoaded();
       return;
     }
     this.api.get(id).subscribe({
       next: ({ body, etag }) => {
         this.etag = etag;
-        this.form.patchValue({
-          name: body.name,
-          categoryId: body.category.id,
-          assetTag: body.assetTag ?? '',
-          serialNumber: body.serialNumber ?? '',
-          manufacturer: body.manufacturer ?? '',
-          model: body.model ?? '',
-          purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : null,
-          warrantyUntil: body.warrantyUntil ? new Date(body.warrantyUntil) : null,
-          purchasePrice: body.purchasePrice,
-          currency: body.currency ?? '',
-          location: body.location ?? '',
-          description: body.description ?? '',
-          notes: body.notes ?? '',
-        });
+        this.patchFrom(body);
         this.loading.set(false);
+        this.markLoaded();
       },
       error: () => {
         this.formError.set('This asset could not be loaded.');
@@ -199,9 +301,35 @@ export class AssetForm {
     });
   }
 
+  private patchFrom(body: Asset): void {
+    this.form.patchValue({
+      name: body.name,
+      categoryId: body.category.id,
+      assetTag: body.assetTag ?? '',
+      serialNumber: body.serialNumber ?? '',
+      manufacturer: body.manufacturer ?? '',
+      model: body.model ?? '',
+      purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : null,
+      warrantyUntil: body.warrantyUntil ? new Date(body.warrantyUntil) : null,
+      purchasePrice: body.purchasePrice,
+      currency: body.currency ?? '',
+      location: body.location ?? '',
+      description: body.description ?? '',
+      notes: body.notes ?? '',
+    });
+  }
+
   save(): void {
+    if (this.saving()) return;
     this.form.markAllAsTouched();
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.formError.set(
+        this.form.errors?.['warrantyBeforePurchase']
+          ? 'The warranty cannot end before the purchase date.'
+          : 'Please correct the highlighted fields.',
+      );
+      return;
+    }
     this.saving.set(true);
     this.formError.set(null);
     this.fieldErrors.set({});
@@ -210,6 +338,8 @@ export class AssetForm {
     const call = id ? this.api.update(id, this.etag, req) : this.api.create(req, this.key);
     call.subscribe({
       next: ({ body }) => {
+        this.saved = true;
+        storage.remove(this.draftKey);
         this.snack.open(id ? 'Asset saved.' : 'Asset created.', undefined, { duration: 3000 });
         void this.router.navigate(['/assets', body.id]);
       },
@@ -261,4 +391,39 @@ export class AssetForm {
       notes: nz(v.notes),
     };
   }
+}
+
+/** Cross-field rule: a warranty that ends before the purchase is a typo. */
+function warrantyAfterPurchase(group: AbstractControl): ValidationErrors | null {
+  const p = group.get('purchaseDate')?.value as Date | null;
+  const w = group.get('warrantyUntil')?.value as Date | null;
+  if (p && w && w.getTime() < p.getTime()) {
+    group.get('warrantyUntil')?.setErrors({ warrantyBeforePurchase: true });
+    return { warrantyBeforePurchase: true };
+  }
+  return null;
+}
+
+interface Draft {
+  at: number;
+  value: Record<string, unknown>;
+}
+
+function readDraft(key: string): Draft | null {
+  try {
+    const raw = storage.get(key);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as Draft;
+    return Date.now() - d.at < 7 * 86400000 ? d : null; // drafts older than a week are stale
+  } catch {
+    return null;
+  }
+}
+
+function reviveDates(v: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...v };
+  for (const k of ['purchaseDate', 'warrantyUntil']) {
+    if (typeof out[k] === 'string') out[k] = new Date(out[k] as string);
+  }
+  return out;
 }
