@@ -37,7 +37,7 @@
     "eslint": "^10.9.1",
     "jsdom": "^28.0.0",
     "prettier": "^3.9.7",
-    "typescript": "~6.0.2",
+    "typescript": "~7.0.2",
     "typescript-eslint": "8.69.0",
     "vitest": "^4.0.8"
   }
