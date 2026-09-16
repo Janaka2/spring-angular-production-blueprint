@@ -21,9 +21,9 @@ verifiably works, a logical commit, and a summary of what now works. Nothing is 
 [✓] Repository structure
 [✓] Backend skeleton compiles (Spring Boot 4.1.1, Java 25)
 [✓] Frontend skeleton compiles (Angular 22)
-[ ] Course 2: PostgreSQL schema and migrations
-[ ] Course 3: backend API with security, audit, observability
-[ ] Course 4: Angular application
+[✓] Course 2: PostgreSQL schema and migrations
+[✓] Course 3: backend API with security, audit, observability
+[✓] Course 4: Angular application (Playwright flow written; executed in CI)
 [ ] Course 5: quality, security and reliability
 [ ] Course 6: observability stack
 [ ] Course 7: deployment, CI/CD, operations

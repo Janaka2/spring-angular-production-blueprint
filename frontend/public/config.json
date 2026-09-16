@@ -1,0 +1,5 @@
+{
+  "apiUrl": "http://localhost:8080",
+  "issuer": "http://localhost:8081/realms/assetcare",
+  "clientId": "assetcare-spa"
+}

@@ -1,0 +1,212 @@
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { CurrencyPipe, DatePipe } from '@angular/common';
+import { Router, RouterLink } from '@angular/router';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { MatTableModule } from '@angular/material/table';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatSortModule, Sort } from '@angular/material/sort';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { debounceTime, distinctUntilChanged, startWith } from 'rxjs';
+import { AssetsApi } from '../../core/api/assets.api';
+import { Asset, AssetStatus, Category, Page } from '../../core/api/models';
+import { AuthService } from '../../core/auth/auth.service';
+import { Loading, Empty, ErrorState } from '../../shared/state';
+import { statusClass } from '../../shared/format';
+
+/**
+ * Search, filter, sort and paginate assets. Every input is a signal; a computed query drives one HTTP call per change.
+ * Reload after navigation keeps the last query in the URL-free state of this component only; deep links open details.
+ */
+@Component({
+  selector: 'app-asset-list',
+  imports: [
+    RouterLink,
+    DatePipe,
+    CurrencyPipe,
+    ReactiveFormsModule,
+    MatTableModule,
+    MatPaginatorModule,
+    MatSortModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatIconModule,
+    MatCheckboxModule,
+    Loading,
+    Empty,
+    ErrorState,
+  ],
+  template: `
+    <div class="page">
+      <div class="page-title">
+        <h1>Assets</h1>
+        @if (auth.canWrite()) {
+          <a mat-flat-button routerLink="/assets/new"><mat-icon>add</mat-icon> New asset</a>
+        }
+      </div>
+      <div class="toolbar-row">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Search</mat-label>
+          <input matInput [formControl]="search" placeholder="name, tag, serial, manufacturer, model" autocomplete="off" />
+          <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Status</mat-label>
+          <mat-select [value]="status()" (valueChange)="status.set($event); page.set(0)">
+            <mat-option value="">Any (not archived)</mat-option>
+            <mat-option value="ACTIVE">Active</mat-option>
+            <mat-option value="IN_REPAIR">In repair</mat-option>
+            <mat-option value="RETIRED">Retired</mat-option>
+            <mat-option value="ARCHIVED">Archived</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Category</mat-label>
+          <mat-select [value]="categoryId()" (valueChange)="categoryId.set($event); page.set(0)">
+            <mat-option value="">All</mat-option>
+            @for (c of categories(); track c.id) {
+              <mat-option [value]="c.id">{{ c.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      @let r = result();
+      @if (r.loading && !r.data) {
+        <app-loading />
+      } @else if (r.error) {
+        <app-error-state message="Assets could not be loaded." [retry]="reload" />
+      } @else if (r.data && r.data.totalItems === 0) {
+        <app-empty icon="inventory_2" message="No assets match.">
+          @if (auth.canWrite() && !search.value && !status()) {
+            <a mat-stroked-button routerLink="/assets/new">Add your first asset</a>
+          }
+        </app-empty>
+      } @else if (r.data) {
+        <table
+          mat-table
+          [dataSource]="r.data.items"
+          matSort
+          [matSortActive]="sortField()"
+          [matSortDirection]="sortDir()"
+          (matSortChange)="onSort($event)"
+          aria-label="Assets"
+        >
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
+            <td mat-cell *matCellDef="let a">
+              <strong>{{ a.name }}</strong>
+              <div class="muted">{{ a.manufacturer }} {{ a.model }}</div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="assetTag">
+            <th mat-header-cell *matHeaderCellDef class="hide-sm">Tag</th>
+            <td mat-cell *matCellDef="let a" class="hide-sm">{{ a.assetTag ?? '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="category">
+            <th mat-header-cell *matHeaderCellDef class="hide-sm">Category</th>
+            <td mat-cell *matCellDef="let a" class="hide-sm">{{ a.category.name }}</td>
+          </ng-container>
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let a">
+              <span [class]="statusClass(a.status)">{{ a.status }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="warrantyUntil">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-sm">Warranty until</th>
+            <td mat-cell *matCellDef="let a" class="hide-sm">{{ a.warrantyUntil ? (a.warrantyUntil | date: 'mediumDate') : '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="purchasePrice">
+            <th mat-header-cell *matHeaderCellDef class="hide-sm">Price</th>
+            <td mat-cell *matCellDef="let a" class="hide-sm">
+              {{ a.purchasePrice !== null ? (a.purchasePrice | currency: a.currency ?? 'CHF') : '—' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="updatedAt">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Updated</th>
+            <td mat-cell *matCellDef="let a">{{ a.updatedAt | date: 'mediumDate' }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="columns"></tr>
+          <tr mat-row *matRowDef="let a; columns: columns" class="row-link" tabindex="0" (click)="open(a)" (keydown.enter)="open(a)"></tr>
+        </table>
+        <mat-paginator
+          [length]="r.data.totalItems"
+          [pageIndex]="page()"
+          [pageSize]="size()"
+          [pageSizeOptions]="[10, 20, 50]"
+          (page)="onPage($event)"
+          aria-label="Pages"
+        />
+      }
+    </div>
+  `,
+})
+export class AssetList {
+  readonly auth = inject(AuthService);
+  private readonly api = inject(AssetsApi);
+  private readonly router = inject(Router);
+
+  readonly columns = ['name', 'assetTag', 'category', 'status', 'warrantyUntil', 'purchasePrice', 'updatedAt'];
+  readonly statusClass = statusClass;
+
+  readonly search = new FormControl('', { nonNullable: true });
+  private readonly searchValue = toSignal(this.search.valueChanges.pipe(debounceTime(300), distinctUntilChanged(), startWith('')), {
+    initialValue: '',
+  });
+  readonly status = signal<AssetStatus | ''>('');
+  readonly categoryId = signal('');
+  readonly page = signal(0);
+  readonly size = signal(20);
+  readonly sortField = signal('updatedAt');
+  readonly sortDir = signal<'asc' | 'desc'>('desc');
+
+  readonly categories = signal<Category[]>([]);
+  readonly result = signal<{ loading: boolean; error: boolean; data: Page<Asset> | null }>({ loading: true, error: false, data: null });
+
+  private readonly query = computed(() => ({
+    search: this.searchValue(),
+    status: this.status(),
+    categoryId: this.categoryId(),
+    includeArchived: this.status() === 'ARCHIVED',
+    page: this.page(),
+    size: this.size(),
+    sort: `${this.sortField()},${this.sortDir()}`,
+  }));
+
+  constructor() {
+    this.api.categories().subscribe({ next: (c) => this.categories.set(c.filter((x) => x.active)) });
+    effect(() => {
+      const q = this.query();
+      this.result.update((r) => ({ ...r, loading: true, error: false }));
+      this.api.list(q).subscribe({
+        next: (data) => this.result.set({ loading: false, error: false, data }),
+        error: () => this.result.set({ loading: false, error: true, data: null }),
+      });
+    });
+  }
+
+  readonly reload = (): void => this.page.set(this.page());
+
+  onPage(e: PageEvent): void {
+    this.size.set(e.pageSize);
+    this.page.set(e.pageIndex);
+  }
+
+  onSort(s: Sort): void {
+    this.sortField.set(s.active);
+    this.sortDir.set(s.direction === 'asc' ? 'asc' : 'desc');
+    this.page.set(0);
+  }
+
+  open(a: Asset): void {
+    void this.router.navigate(['/assets', a.id]);
+  }
+}

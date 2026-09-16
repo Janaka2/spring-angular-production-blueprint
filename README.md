@@ -36,9 +36,9 @@ has been executed.
 | Course | State |
 |---|---|
 | 1 Mise en place: architecture, domain, standards, environment | done |
-| 2 Starter: PostgreSQL schema and migrations | in progress |
-| 3 Soup: Spring Boot service | not started |
-| 4 Main course: Angular application | not started |
+| 2 Starter: PostgreSQL schema and migrations | done |
+| 3 Soup: Spring Boot service | done (integration tests run in CI) |
+| 4 Main course: Angular application | done (end-to-end flow runs in CI) |
 | 5 Side dishes: quality, security, reliability | not started |
 | 6 Dessert: observability | not started |
 | 7 Coffee: deployment, CI/CD, operations | not started |
@@ -106,10 +106,11 @@ Updated at the end of each course. Only executed checks are marked PASS.
 
 ```text
 Backend compile (Java 25, Spring Boot 4.1.1)     PASS   (2026-09-16, local, ./mvnw compile)
-Frontend build (Angular 22.1)                    PASS   (2026-09-16, local, ng build)
-Frontend unit tests (Vitest)                     PASS   (2026-09-16, local, 2 tests)
-Backend unit tests                               NOT EXECUTED (course 3)
-Integration tests (Testcontainers)               NOT EXECUTED (course 3, CI)
+Backend unit + architecture tests                PASS   (2026-09-16, local, 21 tests: domain, use cases, ArchUnit)
+Integration tests (Testcontainers, PostgreSQL 18) NOT EXECUTED locally (no Docker on the build machine); runs in CI
+Frontend build (Angular 22.1)                    PASS   (2026-09-16, local, ng build, 548 kB initial)
+Frontend lint (angular-eslint, Prettier)         PASS   (2026-09-16, local)
+Frontend unit tests (Vitest)                     PASS   (2026-09-16, local, 10 tests)
 Docker build amd64 / arm64                       NOT EXECUTED (course 7, CI)
 Helm lint / template                             NOT EXECUTED (course 7)
 Security scans                                   NOT EXECUTED (course 5, CI)
