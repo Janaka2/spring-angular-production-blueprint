@@ -47,4 +47,4 @@ Then add `- include: { file: changes/008-maintenance-item-skipped.yaml, relative
   `make integration-test` does (`SchemaIT`).
 - `cd backend && ./mvnw -q liquibase:updateSQL` (with a running PostgreSQL) to read the SQL before committing.
 - Rollback path: `./mvnw liquibase:rollback -Dliquibase.rollbackCount=1` on a scratch database.
-- Update `docs/architecture/DOMAIN-MODEL.md` if the model changed. Commit as `feat:` with the feature, or `chore(db):`.
+- Update `docs/architecture/DATABASE-MODEL.md` (ER diagram, table section, query map) and `DOMAIN-MODEL.md` if the model changed. Commit as `feat:` with the feature, or `chore(db):`.

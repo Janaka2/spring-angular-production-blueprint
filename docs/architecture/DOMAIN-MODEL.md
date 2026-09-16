@@ -1,5 +1,8 @@
 # AssetCare domain model
 
+This page is the business view. The physical schema, column by column with constraints, indexes, state diagrams and
+the query-to-index map, is `DATABASE-MODEL.md`.
+
 The model serves a person tracking a laptop, a car and a boiler as well as an organisation tracking a fleet. It does
 that by keeping the core small and generic and putting configuration (categories, maintenance types) in data.
 

@@ -179,3 +179,5 @@ From one Angular container, one API replica and one PostgreSQL:
 4. **Static assets:** put the SPA behind a CDN.
 5. **Asynchronous work:** notifications and document processing through a transactional outbox and a broker, extracted
    into their own services as described above. Kafka appears at that point and not before.
+
+See also `DOMAIN-MODEL.md` (concepts) and `DATABASE-MODEL.md` (the physical schema with diagrams).
