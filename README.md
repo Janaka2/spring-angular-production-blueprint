@@ -106,6 +106,7 @@ Read `docs/architecture/ARCHITECTURE.md` for the dependency direction and where 
 - `docs/security/` — security principles, threat model
 - `docs/PRODUCTION-GAPS.md` — what an enterprise replaces
 - `docs/academy/` — the seven-course roadmap and the Academy article
+- `docs/TOOLS-AND-LIBRARIES.md` — every tool and library, what it does here and what it makes easy
 - `VERSION-MATRIX.md` — every version, verified against its official source
 
 ## Verification report

@@ -1,5 +1,7 @@
 # Version matrix
 
+What each of these does and why it is here: `docs/TOOLS-AND-LIBRARIES.md`.
+
 Every version below was checked against its official release page on **16 September 2026**, the day this
 project was started. Versions managed by Spring Boot are taken from the Spring Boot 4.1.1 dependency table and are
 not overridden in the build. Update this file when you upgrade; it is the single place that says what the project runs on.

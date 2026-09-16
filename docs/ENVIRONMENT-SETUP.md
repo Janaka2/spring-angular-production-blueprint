@@ -37,6 +37,8 @@ Windows).
 
 ## Words you will meet
 
+(The complete list of every tool and library, with what each one does for you, is `docs/TOOLS-AND-LIBRARIES.md`.)
+
 | Word | What it means here |
 |---|---|
 | **Backend / API** | The part of AssetCare that stores and checks data. It is a Java program. It listens at `http://localhost:8080`. |
