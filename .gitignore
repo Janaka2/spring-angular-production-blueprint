@@ -1,0 +1,24 @@
+# build output
+backend/target/
+frontend/dist/
+frontend/.angular/
+frontend/node_modules/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+performance/results/
+
+# local environment and secrets: never commit these
+.env
+*.env.local
+deploy/k3s/*.secret.yaml
+infra/oci/*.tfvars
+infra/oci/.terraform/
+backups/
+
+# tooling
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.log
