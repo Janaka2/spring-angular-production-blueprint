@@ -46,6 +46,7 @@ Work inside out. Each layer has one job; do not skip a layer because it feels sm
 - Component under `features/<area>/`: standalone, signals, typed form; states: loading, empty, error (Problem Details
   via `shared/state.ts`), forbidden (hide the control when `auth.canWrite()` is false, and handle a 403 anyway).
 - Vitest spec next to the component; extend `e2e/assetcare.spec.ts` if the flow is user-visible.
+- Update the wireframe in `docs/architecture/UI-WIREFRAMES.md` (screen, states, who-sees-what table).
 
 ## 8. Done when
 `make unit-test`, `make integration-test`, `make test`, `make lint` pass; OpenAPI shows the change at

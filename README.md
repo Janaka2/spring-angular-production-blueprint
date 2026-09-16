@@ -100,7 +100,7 @@ Read `docs/architecture/ARCHITECTURE.md` for the dependency direction and where 
 - `docs/ENVIRONMENT-SETUP.md` — setup from zero, local and production, written for beginners; each step verified
 - `docs/operations/OPERATIONS-GUIDE.md` — keeping it running, in plain language; `RUNBOOK.md` is the expert version
 - `docs/HOW-TO-MODIFY.md` — the playbook for common changes; the same playbook as AI skills in `.claude/skills/`
-- `docs/architecture/` — architecture, domain model, database model (ER diagram, every column and index), Oracle migration
+- `docs/architecture/` — architecture, domain model, database model (ER diagram, every column and index), UI wireframes (every screen, state and role), Oracle migration
 - `docs/adr/` — architecture decision records
 - `docs/operations/` — deployment, OCI free tier, runbook, health monitoring, backup and restore, scaling, observability, post-mortem template
 - `docs/security/` — security principles, threat model
