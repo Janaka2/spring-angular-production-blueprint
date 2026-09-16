@@ -1,5 +1,8 @@
 # Runbook
 
+This is the expert reference. If you are new to operating software, start with `OPERATIONS-GUIDE.md`, which covers
+the same situations in plain language and points back here.
+
 For the person on call. Each entry: how you notice, what to check, what to do, how to confirm. Alerts are defined in
 `observability/prometheus/rules.yml`; dashboards in Grafana → AssetCare.
 

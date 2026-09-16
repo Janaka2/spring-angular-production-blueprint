@@ -1,528 +1,636 @@
-# Environment setup: local and production, one verified step at a time
+# Setting up AssetCare, explained from zero
 
-Two tracks. **Local** (L1 to L12) gives you a machine that runs, changes and tests AssetCare. **Production** (P1 to P14)
-takes an empty Oracle Cloud account to `https://your-host` with TLS, backups and a pipeline. Every step has three parts:
-*Do*, *Verify* and *Expected*. Do not move on until the verify command prints what is expected; every later step assumes
-it.
+This guide assumes nothing. You do not need to have programmed before. You will type commands into a program called a
+terminal, one at a time, and after each one you will check that the computer answered the way this page says. If it
+did, move to the next number. If it did not, the "If not" line tells you what to do.
 
-`make doctor` checks L2 to L7 in one go and names the step to fix.
+There are two tracks:
 
-## The checklist
+- **Local** (steps L1 to L12): make AssetCare run on your own computer. This is where you learn and change things.
+  About 45 minutes, most of it waiting for downloads.
+- **Production** (steps P1 to P14): put AssetCare on the internet for other people, on a free Oracle Cloud computer.
+  Do the Local track first. About two hours the first time.
 
-| # | Local machine | Verified by |
-|---|---|---|
-| L1 | Operating system and hardware | `uname`, memory |
-| L2 | Git | `git --version` |
-| L3 | Java 25 | `java -version` |
-| L4 | Node.js 24 and npm | `node --version` |
-| L5 | Docker with Compose v2 | `docker run hello-world` |
-| L6 | make, curl, jq | `make --version` |
-| L7 | Clone, `.env`, `make doctor` | `doctor: ready` |
-| L8 | Dependencies: PostgreSQL, Keycloak, MinIO | `docker compose ps` all healthy |
-| L9 | Backend API | `/actuator/health` UP, `/api/v1/assets` 401 |
-| L10 | Frontend SPA and login | dashboard as `alice` |
-| L11 | Tests: unit, integration, frontend, e2e | all green |
-| L12 | Observability profile (optional) | Grafana shows requests |
+## Before you start: five things to know
 
-| # | Production (K3s on OCI Always Free) | Verified by |
-|---|---|---|
-| P1 | Deployment tools: kubectl, Helm, Terraform, GitHub CLI | versions |
-| P2 | GitHub: workflow scope, Actions, packages | `gh auth status`, first green run |
-| P3 | Released images and chart | `release` workflow green, packages visible |
-| P4 | Oracle Cloud account, compartment, API key | `oci iam region list` or console |
-| P5 | The VM with Terraform | `ssh` works, `aarch64` |
-| P6 | K3s, Helm and cert-manager on the VM | node Ready, cert-manager pods Running |
-| P7 | Firewall: OCI security list and VM iptables | `curl -I http://<ip>` answers |
-| P8 | DNS A record | `dig` returns the VM IP |
-| P9 | ClusterIssuer (staging first, then prod) | `kubectl get clusterissuer` Ready |
-| P10 | Namespace and the production Secret | `kubectl get secret` |
-| P11 | Realm redirect URIs for your host | `grep` |
-| P12 | Helm install | all pods Running, certificate Ready |
-| P13 | HTTPS, smoke test, login | `smoke test passed`, dashboard over https |
-| P14 | Backup CronJob and a restore drill | dump file exists, drill row counts match |
+**1. What a terminal is.** A window where you type a command and press Enter; the computer answers in text.
+- macOS: press `Cmd + Space`, type `Terminal`, press Enter.
+- Windows: install "Ubuntu" from the Microsoft Store first (step L1 explains), then open the app called Ubuntu.
+- Linux: press `Ctrl + Alt + T`.
+
+**2. How to type a command.** Copy the line from the grey box, paste it into the terminal (`Cmd + V` on macOS,
+right-click on Windows/Linux), press Enter. Type one line at a time. Lines that start with `#` are comments for you to
+read, not commands; the terminal ignores them. Do not type the `$` if you see one at the start of a line.
+
+**3. How to know it worked.** Every step has a "You should see" box. Compare. Small differences such as version
+numbers a little higher than shown, or dates, are fine. A red word like `error`, `not found` or `permission denied`
+is not fine: read the "If not" line.
+
+**4. Where you are.** The terminal is always "inside" one folder. `pwd` prints which one. `cd some-folder` moves into
+a folder, `cd ..` moves out, `ls` lists what is there. Most commands on this page must be typed inside the project
+folder `spring-angular-production-blueprint`; step L7 takes you there and every later step reminds you.
+
+**5. Waiting is normal.** When a command prints nothing for a while, it is working. Do not close the window. A command
+is finished when the terminal shows your prompt again, waiting for you. Some commands (L9, L10) never finish on purpose:
+they keep a program running. For those you open a second terminal window (`Cmd + N` on macOS, a new Ubuntu window on
+Windows).
+
+## Words you will meet
+
+| Word | What it means here |
+|---|---|
+| **Backend / API** | The part of AssetCare that stores and checks data. It is a Java program. It listens at `http://localhost:8080`. |
+| **Frontend / SPA** | The part you see in the browser, written with Angular. It listens at `http://localhost:4200`. |
+| **localhost** | A name for "this computer". `http://localhost:8080` means "the program on my own computer listening on door number 8080". |
+| **Port** | A numbered door on a computer. Two programs cannot use the same door. AssetCare uses doors 4200, 8080, 8081, 5432, 9000, 9001, 9002. |
+| **Docker** | A tool that runs other programs (the database, the login server) in sealed boxes called containers, so you do not have to install them by hand. |
+| **PostgreSQL** | The database: where assets are stored. Runs inside Docker. |
+| **Keycloak** | The login server: knows the users and passwords. Runs inside Docker. |
+| **MinIO** | File storage for attachments, like a tiny private Dropbox. Runs inside Docker. |
+| **Java, Node** | Two programming languages. The backend needs Java 25, the frontend needs Node 24. You install both once. |
+| **Git, GitHub** | Git keeps versions of the code. GitHub is the website where the project lives. "Clone" means "download a copy that stays connected". |
+| **`.env` file** | A text file with settings (addresses, passwords for your local copy only). Never sent anywhere. |
+| **Kubernetes / K3s** | For production only: a program that keeps AssetCare's containers running on a server and restarts them if they crash. K3s is the small version we use. |
+| **Helm** | For production only: installs AssetCare into Kubernetes with one command. |
+| **Terraform** | For production only: creates the cloud computer from a description file, so nobody clicks through a website by hand. |
 
 ---
 
 ## Local track
 
-### L1. Operating system and hardware
+### L1. Your computer
 
-**Do.** Use macOS 13+, Ubuntu 22.04/24.04, Debian 12, Fedora 40+, or Windows 10/11 with WSL 2. On Windows, run
-`wsl --install` in an administrator PowerShell, reboot, open the Ubuntu shell and follow the Ubuntu commands from here
-on. Have 4 cores, 16 GB RAM (8 GB free), 10 GB disk.
+**What this is.** Checking that your computer can do this at all, and on Windows, installing the Linux layer the
+tools need.
 
-**Verify.**
+**Do this.**
+- macOS 13 or newer, or Ubuntu 22.04/24.04: nothing to install yet.
+- Windows 10/11: open PowerShell **as administrator** (right-click the Start button → "Terminal (Admin)"), type
+  `wsl --install`, press Enter, wait, restart the computer. After the restart an "Ubuntu" window opens and asks you
+  to choose a username and password: pick simple ones and write them down. From now on, every command in this guide
+  is typed into that Ubuntu window, not into PowerShell.
+
+**Check.** In the terminal:
 
 ```bash
 uname -sm
-# macOS: Darwin arm64 (Apple Silicon) or Darwin x86_64.  Linux/WSL: Linux x86_64 or Linux aarch64
-free -g 2>/dev/null || sysctl -n hw.memsize | awk '{print $1/1073741824 " GB"}'
 ```
 
-**Expected.** A supported OS and at least 16 GB total memory. In WSL, `uname -r` contains `WSL2`.
+**You should see.** `Darwin arm64` or `Darwin x86_64` on a Mac, `Linux x86_64` or `Linux aarch64` on Linux and Windows.
+
+**If not.** On Windows, if you see `wsl` errors, your Windows is too old or virtualisation is off in the BIOS;
+Microsoft's page https://aka.ms/wslinstall explains both.
+
+Also make sure you have at least 16 GB of memory and 10 GB of free disk. On a Mac: Apple menu → About This Mac. On
+Windows: Settings → System → About.
 
 ### L2. Git
 
-**Do.**
+**What this is.** The tool that downloads the project and tracks changes.
+
+**Do this.**
 
 ```bash
-# macOS
-xcode-select --install 2>/dev/null; brew install git
-# Ubuntu / WSL
+# macOS (a window may pop up asking to install "command line developer tools": click Install, wait, then continue)
+xcode-select --install
+# Ubuntu / Windows
 sudo apt-get update && sudo apt-get install -y git curl unzip zip
-git config --global user.name "Your Name" && git config --global user.email "you@example.com"
 ```
 
-**Verify.** `git --version && git config --global user.email`
+`sudo` means "do this as the administrator"; it asks for the password you chose at L1 and shows nothing while you type
+it. That is normal. Then tell Git who you are (any name and email; they are attached to your changes):
 
-**Expected.** `git version 2.4x` or newer, and your email.
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
+
+**Check.** `git --version`
+
+**You should see.** `git version 2.` followed by numbers.
+
+**If not.** `command not found`: on a Mac the pop-up installer was cancelled, run the first command again. On Ubuntu,
+the `apt-get` line failed, read the last line of its output.
 
 ### L3. Java 25
 
-**Do.** SDKMAN keeps several JDKs and is the recommended route on macOS and Linux.
+**What this is.** The language the backend runs on. We install it with a helper called SDKMAN that makes updating
+easy later.
+
+**Do this.** Copy and run these four lines one at a time:
 
 ```bash
 curl -s "https://get.sdkman.io" | bash
 source "$HOME/.sdkman/bin/sdkman-init.sh"
-sdk list java | grep -E "25\.[0-9.]+-tem"     # shows the current Temurin 25 build
-sdk install java 25.0.2-tem                    # use the build the line above printed
+sdk install java 25.0.2-tem
 sdk default java 25.0.2-tem
 ```
 
-Alternatives: `brew install --cask temurin@25` (macOS) or the Adoptium apt repository (Ubuntu:
-https://adoptium.net/installation/linux/). Maven is not installed separately; `backend/mvnw` downloads 3.9.16 itself.
+If the third line says the version does not exist, run `sdk list java | grep 25` and use the newest name that ends in
+`-tem` instead of `25.0.2-tem`.
 
-**Verify.** `java -version`
+**Check.** Close the terminal, open a new one, and type `java -version`
 
-**Expected.**
+**You should see.** Three lines; the first begins with `openjdk version "25.`
 
-```text
-openjdk version "25.0.2" 2026-01-20 LTS
-OpenJDK Runtime Environment Temurin-25.0.2+10 (build 25.0.2+10-LTS)
-```
+**If not.**
+- macOS says "Unable to locate a Java Runtime": that is a fake `java` Apple ships. SDKMAN was not loaded: run
+  `source "$HOME/.sdkman/bin/sdkman-init.sh"` and check again; if that fixes it, close and reopen the terminal.
+- The version is not 25: run `sdk default java 25.0.2-tem` (with the name you installed).
 
-The first line must say `25.`. macOS without a JDK prints "Unable to locate a Java Runtime": that is the stub, not Java.
+### L4. Node.js 24
 
-### L4. Node.js 24 and npm
+**What this is.** The language the frontend tools run on. Installed with a helper called nvm.
 
-**Do.**
+**Do this.**
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 source ~/.nvm/nvm.sh
-nvm install 24 && nvm use 24 && nvm alias default 24
+nvm install 24
+nvm alias default 24
 ```
 
-Alternative: `brew install node@24 && brew link --overwrite node@24`.
+**Check.** Close the terminal, open a new one: `node --version && npm --version`
 
-**Verify.** `node --version && npm --version`
+**You should see.** `v24.` followed by numbers, then `11.` followed by numbers.
 
-**Expected.** `v24.x.y` and `11.x.y`. Angular 22 also accepts Node 22.12+, but CI uses 24; match it.
+**If not.** `nvm: command not found` in the new terminal: run `source ~/.nvm/nvm.sh` and try again; if that works, add
+that line to the end of the file `~/.zshrc` (macOS) or `~/.bashrc` (Linux) with any text editor.
 
-### L5. Docker with Compose v2
+### L5. Docker
 
-**Do.**
+**What this is.** Runs the database, the login server and the file storage without installing them one by one.
 
-| OS | Install |
-|---|---|
-| macOS | Docker Desktop (https://www.docker.com/products/docker-desktop/), or OrbStack, or Colima: `brew install colima docker docker-compose && colima start --cpu 4 --memory 8` |
-| Ubuntu | Docker Engine from Docker's repository (https://docs.docker.com/engine/install/ubuntu/), then `sudo usermod -aG docker $USER`, log out and in |
-| Windows | Docker Desktop with the WSL 2 backend and WSL integration enabled for your Ubuntu distribution |
+**Do this.**
+- **macOS**: download Docker Desktop from https://www.docker.com/products/docker-desktop/, open the file, drag Docker
+  to Applications, open Docker from Applications, accept the licence, wait until the whale icon in the menu bar stops
+  moving. Then click the whale → Settings → Resources and set CPUs to 4 and Memory to 6 GB → Apply.
+- **Windows**: download Docker Desktop from the same page, install it, when asked tick "Use WSL 2", restart. Open
+  Docker Desktop → Settings → Resources → WSL integration → switch on "Ubuntu" → Apply. Docker Desktop must be open
+  (whale icon in the tray) whenever you use AssetCare.
+- **Ubuntu**: follow "Install using the apt repository" at https://docs.docker.com/engine/install/ubuntu/ (six copy-
+  paste lines), then `sudo usermod -aG docker $USER`, then log out and log in again.
 
-Give Docker 4 CPUs and 6 GB memory (Docker Desktop → Settings → Resources). With Colima add to your shell profile:
-`export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` and
-`export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`.
-
-**Verify.**
+**Check.**
 
 ```bash
-docker --version && docker compose version
-docker run --rm hello-world | head -3
+docker --version
+docker compose version
+docker run --rm hello-world
 ```
 
-**Expected.** `Docker version 27` or newer, `Docker Compose version v2.x`, and `Hello from Docker!`. If the last command
-says "permission denied" on Linux, the group change from the table has not taken effect: log out and in.
+**You should see.** `Docker version 27` or higher, `Docker Compose version v2`, and a message that begins
+`Hello from Docker!`
 
-### L6. make, curl, jq
+**If not.**
+- `Cannot connect to the Docker daemon`: Docker Desktop is not running; open it and wait for the whale.
+- `permission denied` on Ubuntu: you did not log out and in after the `usermod` line.
+- On Windows, `docker: command not found` inside Ubuntu: WSL integration is not switched on in Docker Desktop settings.
 
-**Do.** macOS: `make` came with L2; `brew install jq`. Ubuntu: `sudo apt-get install -y make jq`.
+### L6. make and jq
 
-**Verify.** `make --version | head -1 && curl --version | head -1 && jq --version`
+**What this is.** `make` runs the project's shortcuts (`make backend` instead of a long command). `jq` shows
+answers from the API in a readable way.
 
-**Expected.** `GNU Make 3.81` or newer, `curl 7.x/8.x`, `jq-1.7`.
+**Do this.** macOS: `brew install jq` (if `brew` is not found, install Homebrew first from https://brew.sh, one
+copy-paste line). Ubuntu/Windows: `sudo apt-get install -y make jq`
 
-### L7. Clone, configure, doctor
+**Check.** `make --version | head -1 && jq --version`
 
-**Do.**
+**You should see.** `GNU Make 3.81` or higher, and `jq-1.7` or similar.
+
+### L7. Download the project and let the doctor check everything
+
+**What this is.** Getting the code onto your computer, creating your settings file, and running a built-in check
+of steps L2 to L6.
+
+**Do this.**
 
 ```bash
+cd ~
 git clone https://github.com/Janaka2/spring-angular-production-blueprint.git
 cd spring-angular-production-blueprint
-cp .env.example .env        # development credentials only, labelled, ignored by Git; change nothing for a first run
+cp .env.example .env
 make doctor
 ```
 
-**Verify.** The output of `make doctor`.
+From now on, whenever you open a new terminal, first type `cd ~/spring-angular-production-blueprint` to get back into
+the project folder.
 
-**Expected.** Every tool line shows a version, `daemon reachable`, every port `free`, `.env: present`, and the last line
-`doctor: ready`. Anything else names the step (L3 to L5) to fix. A `BUSY` port means another program listens there:
-`lsof -i :5432` shows which; stop it or change the port in `.env`.
+**You should see.** A list where every tool shows a version, `daemon reachable`, seven ports marked `free`,
+`.env: present`, and the last line `doctor: ready`.
 
-| Port | Used by | Change with |
-|---|---|---|
-| 5432 | PostgreSQL | `POSTGRES_PORT` and `ASSETCARE_DB_URL` in `.env` |
-| 8081 | Keycloak | `KEYCLOAK_PORT`, `ASSETCARE_OIDC_ISSUER`, and `frontend/public/config.json` |
-| 9000 | Keycloak management | fixed in `docker-compose.yml` |
-| 9002, 9001 | MinIO API and console | `MINIO_PORT`, `MINIO_CONSOLE_PORT`, `ASSETCARE_S3_ENDPOINT` |
-| 8080 | Spring Boot API | `SERVER_PORT` environment variable and `config.json` |
-| 4200 | Angular dev server | `npm start -- --port 4300` plus the Keycloak client redirect URI |
+**If not.** The doctor names the step: `MISSING (step 3: Java 25)` means go back to L3. `BUSY` next to a port
+means another program already uses that door. To find out which: `lsof -i :8080` (replace the number). Usually it is
+an old copy of something you can close. If you cannot, ask for help before continuing.
 
-### L8. Dependencies: PostgreSQL 18, Keycloak 26, MinIO
+### L8. Start the database, the login server and the file storage
 
-**Do.** `docker compose up -d --wait`. The first run pulls about 1.2 GB and takes two to five minutes; Keycloak is slow
-because it imports the `assetcare` realm.
+**What this is.** Docker starts three containers. The first time it downloads about 1.2 GB.
 
-**Verify.**
+**Do this.** Inside the project folder:
+
+```bash
+docker compose up -d --wait
+```
+
+Wait until the prompt comes back (two to five minutes the first time).
+
+**Check.**
 
 ```bash
 docker compose ps --format 'table {{.Name}}\t{{.Status}}'
 curl -s http://localhost:8081/realms/assetcare | jq -r .realm
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:9002/minio/health/live
-docker compose exec -T postgres pg_isready -U assetcare
 ```
 
-**Expected.**
+**You should see.** Three lines with `Up (healthy)`: `assetcare-postgres`, `assetcare-keycloak`, `assetcare-minio`.
+Then the single word `assetcare`.
 
-```text
-assetcare-postgres   Up (healthy)
-assetcare-keycloak   Up (healthy)
-assetcare-minio      Up (healthy)
-assetcare
-200
-/var/run/postgresql:5432 - accepting connections
+**If not.** One line says `starting` or `unhealthy`: wait one more minute and check again. Still bad after three
+minutes: `docker compose logs keycloak` (or the name shown) prints why; the usual cause is too little memory for Docker
+(L5, set 6 GB). `docker compose down` stops everything and you can try again.
+
+You can now open http://localhost:8081 in your browser: that is Keycloak's admin screen, user `admin`, password
+`admin-dev-password`. You do not need to change anything there.
+
+### L9. Start the backend
+
+**What this is.** Running the Java program that handles the data. This terminal window will stay busy; that is
+correct.
+
+**Do this.** In the project folder:
+
+```bash
+make backend
 ```
 
-Keycloak admin console: http://localhost:8081 (`admin` / `admin-dev-password`). Realm users: `alice` (USER), `bob`
-(USER), `admin` (USER, ADMIN), `audrey` (AUDITOR); password is `<name>-dev-password`.
+The first time it downloads a lot (three minutes). It is ready when a line appears that contains
+`Started AssetCareApplication`. Leave this window open.
 
-### L9. Backend API
-
-**Do.** In a terminal that stays open: `make backend`. The first run downloads Maven and dependencies, about three
-minutes; later runs start in under ten seconds.
-
-**Verify.** In a second terminal:
+**Check.** Open a **second** terminal window, go to the project folder (`cd ~/spring-angular-production-blueprint`),
+then:
 
 ```bash
 curl -s http://localhost:8080/actuator/health | jq -c '{status, db: .components.db.status}'
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/api/v1/assets
+```
+
+**You should see.** `{"status":"UP","db":"UP"}` and then `401`. The 401 is good: it means the API refuses people
+who have not logged in.
+
+**If not.** `Connection refused`: the backend is still starting, wait for `Started AssetCareApplication`. An error in
+the first window mentioning `5432` or `datasource`: the database is not up, go back to L8. An error mentioning
+`issuer`: Keycloak is not up, same.
+
+Bonus, to prove a login works without a browser:
+
+```bash
 TOKEN=$(curl -s -X POST http://localhost:8081/realms/assetcare/protocol/openid-connect/token \
   -d client_id=assetcare-dev-cli -d grant_type=password -d username=alice -d password=alice-dev-password | jq -r .access_token)
 curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/me | jq -c .
-curl -s -H "Authorization: Bearer $TOKEN" 'http://localhost:8080/api/v1/assets?size=1' | jq -c '{total: .totalElements, first: .content[0].name}'
 ```
 
-**Expected.**
+You should see a line containing `"username":"alice"`.
 
-```text
-{"status":"UP","db":"UP"}
-401
-{"username":"alice","roles":["USER"], ...}
-{"total":<a number greater than 0>,"first":"<a demo asset name>"}
-```
+### L10. Start the frontend and log in
 
-The 401 proves security is on; the last two prove Keycloak, the API and the database work together. If you get
-`Connection refused` on 8080 the API is still starting; on 5432 or 8081, L8 is not healthy.
+**What this is.** Running the website part. This needs a third terminal window that stays busy.
 
-### L10. Frontend SPA and login
-
-**Do.** In a third terminal:
+**Do this.** In a new terminal window, in the project folder:
 
 ```bash
-cd frontend && npm ci && cd ..      # first time only, about two minutes
+cd frontend && npm ci && cd ..
 make frontend
 ```
 
-**Verify.**
+`npm ci` runs once and takes about two minutes. `make frontend` is ready when you see `Local: http://localhost:4200/`.
+
+**Check.** Open http://localhost:4200 in your browser.
+
+**You should see.** A login page. Type `alice` and `alice-dev-password`. Then the AssetCare dashboard with a few
+example assets appears. Click "New asset", fill in a name, save. It appears in the list.
+
+**If not.** The page never loads: the frontend window shows an error, usually because `npm ci` did not finish; run it
+again. The login page appears but after logging in you return to the login page: you opened a different address than
+`http://localhost:4200` exactly (for example `127.0.0.1`); use that exact address. "Cannot reach the server" inside
+the app: the backend (L9) is not running.
+
+**You have AssetCare running.** Three terminal windows are busy (backend, frontend) and Docker holds the rest. To stop
+everything at the end of the day: press `Ctrl + C` in the backend and frontend windows, then `docker compose down`.
+To start again tomorrow: L8 (`docker compose up -d --wait`), L9, L10. Your data stays.
+
+### L11. Run the tests
+
+**What this is.** The project checks itself. Running them proves your setup is complete and teaches you the safety
+net you will rely on when you change things.
+
+**Do this.** In a free terminal, in the project folder, with L8, L9 and L10 still running:
 
 ```bash
-curl -s http://localhost:4200/config.json | jq -c .
-```
-
-Then open http://localhost:4200 in a browser and log in as `alice` / `alice-dev-password`.
-
-**Expected.** `{"apiUrl":"http://localhost:8080","issuer":"http://localhost:8081/realms/assetcare","clientId":"assetcare-spa"}`,
-a Keycloak login page, then the dashboard with the demo assets. Create an asset, edit it, plan a maintenance item: all
-three should succeed. If login loops back to Keycloak, the SPA is not on port 4200 (the redirect URI is fixed there).
-
-### L11. Tests
-
-**Do and verify.** With L8, L9 and L10 running:
-
-```bash
-make unit-test            # backend unit + ArchUnit, no Docker, about 40 s
-make integration-test     # backend on PostgreSQL 18 in Testcontainers, about 2 min the first time
-make test                 # backend unit tests + frontend Vitest
+make unit-test
+make integration-test
+make test
 make lint
 cd frontend && npx playwright install --with-deps chromium && cd ..
-make e2e                  # Playwright: login, create, maintenance, auditor, two-session conflict
+make e2e
 ```
 
-**Expected.**
+Each takes between 30 seconds and 3 minutes.
 
-```text
-[INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0        (unit-test)
-[INFO] Tests run: 2x, Failures: 0 ... BUILD SUCCESS               (integration-test; includes *IT classes)
-✓ 10 tests passed                                                 (frontend)
-All files pass linting.                                           (lint)
-3 passed                                                          (e2e)
-```
+**You should see.** Each command ends with a success line: `BUILD SUCCESS` for the first two, `10 passed` or more
+for the third, `All files pass linting`, and `3 passed` for the last. The Playwright test opens and closes a browser by
+itself.
 
-Your toolchain is now proven end to end. Everything after this step is optional for development.
+**If not.** A red `FAIL` or `ERROR` with a test name: copy the whole output and search for it in the project's
+issues on GitHub, or open a new issue with the "Bug" template. Your setup is still fine if L10 worked.
 
-### L12. Observability profile (optional)
+### L12. Watch it breathe (optional)
 
-**Do.** `make observability`, then generate a few requests by clicking around the SPA.
+**What this is.** Dashboards that show what the application is doing: how many requests, how fast, any errors.
 
-**Verify.** Open http://localhost:3000 (`admin` / `admin`) → Dashboards → AssetCare → "AssetCare overview". Open
-http://localhost:9090/targets.
+**Do this.** `make observability`, then click around the app for a minute, then open http://localhost:3000, log in
+with `admin` / `admin`, and open Dashboards → AssetCare → "AssetCare overview".
 
-**Expected.** The request-rate panel shows your clicks; the Prometheus target `assetcare-api` is `UP`; Explore → Loki
-with `{service_name="assetcare-api"}` shows JSON log lines that carry `traceId`; clicking a trace id opens it in Tempo.
-Stop with `make observability-down`.
-
-Stop the whole local stack: Ctrl-C in the three terminals, `docker compose down` (keeps data) or `make deps-down`
-(deletes it).
+**You should see.** Graphs that move when you click in the app. Stop with `make observability-down`.
 
 ---
 
 ## Production track
 
-Production is one `VM.Standard.A1.Flex` machine (4 OCPU, 24 GB, free) running K3s. The steps are ordered so that each
-one can be verified without the next. Costs beyond the free tier are listed in `docs/operations/OCI-FREE-TIER.md`.
+You need: the Local track done, a domain name you own (for example `assetcare.example.com`, about 10 euros a year at
+any registrar), a GitHub account, and an Oracle Cloud account (free; it asks for a credit card to verify identity but
+the machine we use costs nothing). Every command below runs on your own computer unless it says "on the server".
 
-### P1. Deployment tools on your laptop
+### P1. Deployment tools
 
-**Do.**
+**What this is.** Four programs that talk to the cloud and the server: `kubectl` (talks to Kubernetes), `helm`
+(installs AssetCare there), `terraform` (creates the server), `gh` (talks to GitHub).
+
+**Do this.** macOS: `brew install kubectl helm terraform gh`. Ubuntu: follow the install pages linked in the Words
+table above, one tool at a time.
+
+**Check.**
 
 ```bash
-brew install kubectl helm terraform gh            # macOS
-# Ubuntu: kubectl https://kubernetes.io/docs/tasks/tools/ , Helm https://helm.sh/docs/intro/install/ ,
-#         Terraform https://developer.hashicorp.com/terraform/install , gh https://github.com/cli/cli#installation
+kubectl version --client | head -1; helm version --short; terraform version | head -1; gh --version | head -1
+cd ~/spring-angular-production-blueprint && make helm-lint
 ```
 
-**Verify.**
+**You should see.** A version line for each (kubectl 1.29+, Helm v4.3+, Terraform 1.6+, gh 2.x), then
+`1 chart(s) linted, 0 chart(s) failed`.
+
+### P2. Connect to GitHub and let the tests run in the cloud
+
+**What this is.** GitHub can run all the project's tests on its own computers every time code changes. To send it
+the instructions you need one extra permission.
+
+**Do this.**
 
 ```bash
-kubectl version --client | head -1 && helm version --short && terraform version | head -1 && gh --version | head -1
-make helm-lint && make helm-template > /dev/null && echo "chart renders"
-(cd infra/oci && terraform init -backend=false -input=false > /dev/null && terraform validate)
-```
-
-**Expected.** `Client Version: v1.29+`, `v4.3+`, `Terraform v1.6+`, `gh version 2.x`; then `1 chart(s) linted, 0 chart(s)
-failed`, `chart renders`, and `Success! The configuration is valid.`
-
-### P2. GitHub: scopes, Actions and packages
-
-**Do.**
-
-```bash
-gh auth login                                              # GitHub.com, HTTPS, browser
+gh auth login             # choose GitHub.com, HTTPS, "Login with a web browser", follow the browser
 gh auth refresh -h github.com -s workflow,write:packages
 ```
 
-In the repository settings (once, by an admin): Actions → General → allow actions, workflow permissions "Read repository
-contents"; Code security → enable Dependabot alerts, Code scanning, Secret scanning with push protection; Branches →
-protect `main`, require the `ci` jobs. No repository secrets are needed: the workflows use `GITHUB_TOKEN` and OIDC.
+If you work on your own copy of the project, first "fork" it on GitHub (button top right of the project page) and
+clone your fork instead of the original in L7.
 
-**Verify.**
+**Check.**
 
 ```bash
 gh auth status
 git push origin main
 gh run list --limit 3
-gh run watch            # pick the latest ci run
 ```
 
-**Expected.** `gh auth status` lists `workflow` among the token scopes (without it, pushing `.github/workflows` is
-refused). `gh run list` shows `ci` and `security` runs and they finish `completed success`. This is the first time the
-integration tests, Playwright, the restore drill, the image builds and the scans run; a failure here is a real finding.
+**You should see.** `Token scopes:` including `workflow`. Then, a minute after the push, `gh run list` shows runs
+named `ci` and `security`. Type `gh run watch` and pick one; wait until it says `completed success`. This can take
+15 minutes and is the first time every test, including the browser test and the backup drill, runs.
 
-### P3. Release the images and the chart
+**If not.** `refusing to allow an OAuth App to create or update workflow`: the `refresh` line did not run or you
+declined it in the browser; run it again. A run that ends `failure`: click the link it prints; the failed step is
+marked red and its log says what broke.
 
-**Do.**
+### P3. Publish the version
+
+**What this is.** Building the two container images (backend, frontend) for the server, in the cloud, and stamping
+them with a version number.
+
+**Do this.**
 
 ```bash
 git tag v1.0.0 && git push origin v1.0.0
 gh run watch
 ```
 
-**Verify.**
+**Check.** `gh run list --workflow release --limit 1`
+
+**You should see.** `completed success`. On GitHub, on the project page, the right-hand column "Packages" now shows
+`assetcare-api` and `assetcare-frontend`. Click each → "Package settings" → "Change visibility" → Public. (Private
+packages also work but need an extra secret in P10.)
+
+### P4. Oracle Cloud account and key
+
+**What this is.** Creating the account and a key file so Terraform is allowed to create a server for you.
+
+**Do this.**
+1. Sign up at https://www.oracle.com/cloud/free/. Choose a home region near you (for example Zurich or Frankfurt);
+   it cannot be changed later. Wait for the "account is ready" email (minutes to a day).
+2. Log in to the console. Top right, click the profile icon → your username. On that page: "API keys" → "Add API
+   key" → "Generate API key pair" → "Download private key" → save it. Click "Add".
+3. A box "Configuration file preview" appears. Copy its text. On your computer:
 
 ```bash
-gh run list --workflow release --limit 1
-gh api "/users/$(gh api user -q .login)/packages?package_type=container" -q '.[].name'
-docker manifest inspect ghcr.io/janaka2/spring-angular-production-blueprint/assetcare-api:1.0.0 | grep -c architecture
-```
-
-**Expected.** The release run is `completed success`; the packages `assetcare-api` and `assetcare-frontend` are listed;
-the manifest shows two architectures (amd64 and arm64). Make the packages public (Packages → package → settings) or plan
-an image pull secret in P10.
-
-### P4. Oracle Cloud account, compartment, API key
-
-**Do.** Create the account at https://www.oracle.com/cloud/free/ and note the home region (for example `eu-zurich-1`).
-Console → Identity → Compartments: use the root compartment or create `assetcare`; copy its OCID. Then Identity → Users →
-your user → API Keys → Add API Key → Generate, download the private key to `~/.oci/oci_api_key.pem`, and paste the shown
-configuration into `~/.oci/config`, fixing `key_file`. Optionally `brew install oci-cli`.
-
-**Verify.**
-
-```bash
+mkdir -p ~/.oci
+mv ~/Downloads/*.pem ~/.oci/oci_api_key.pem
+nano ~/.oci/config          # paste the text; change the key_file line to: key_file=~/.oci/oci_api_key.pem ; Ctrl+O, Enter, Ctrl+X
 chmod 600 ~/.oci/config ~/.oci/oci_api_key.pem
-grep -E "^(user|tenancy|region|fingerprint|key_file)=" ~/.oci/config
-oci iam region list --output table 2>/dev/null | head -5 || echo "oci cli not installed (optional)"
 ```
 
-**Expected.** Five configuration lines with `ocid1.user...`, `ocid1.tenancy...`, your region, a fingerprint and the key
-path. With the CLI, a table of regions appears; without it, Terraform in P5 is the check. None of this goes into Git.
+4. In the console, top left menu → Identity & Security → Compartments. Click the root compartment (named after your
+   tenancy). Copy its OCID (a long text starting with `ocid1.`). Keep it for P5.
 
-### P5. The VM with Terraform
+**Check.** `grep -c "ocid1" ~/.oci/config`
 
-**Do.**
+**You should see.** `2` (a user id and a tenancy id).
+
+### P5. Create the server
+
+**What this is.** Terraform reads `infra/oci/main.tf` and creates one free ARM server with 4 cores and 24 GB, plus
+its network, plus a firewall that allows only SSH, HTTP and HTTPS.
+
+**Do this.**
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/assetcare -N ""          # or reuse an existing key
-cd infra/oci && cp terraform.tfvars.example terraform.tfvars
-# edit terraform.tfvars: region, compartment_ocid, ssh_public_key_path=~/.ssh/assetcare.pub, ssh_allowed_cidr=<your ip>/32
-terraform init && terraform plan && terraform apply
+ssh-keygen -t ed25519 -f ~/.ssh/assetcare -N ""        # a key pair to log in to the server; press Enter if asked anything
+cd ~/spring-angular-production-blueprint/infra/oci
+cp terraform.tfvars.example terraform.tfvars
+nano terraform.tfvars
 ```
 
-If `apply` fails with "Out of host capacity", set `availability_domain_index = 1` (then `2`) in `terraform.tfvars` and
-retry; if all fail, retry later in the day. Capacity, not money, is the free tier's limit.
+In that file: set `region` to your home region code (shown top right in the console, e.g. `eu-zurich-1`),
+`compartment_ocid` to the OCID from P4, `ssh_public_key_path` to `~/.ssh/assetcare.pub`, and `ssh_allowed_cidr` to
+your own public IP followed by `/32` (find it at https://ifconfig.me). Save (Ctrl+O, Enter, Ctrl+X). Then:
 
-**Verify.**
+```bash
+terraform init
+terraform apply          # read the plan, type yes
+```
+
+**Check.**
 
 ```bash
 terraform output public_ip
-ssh -i ~/.ssh/assetcare ubuntu@$(terraform output -raw public_ip) 'uname -m; nproc; free -g | head -2; lsb_release -ds'
+ssh -i ~/.ssh/assetcare ubuntu@$(terraform output -raw public_ip) 'uname -m; nproc; free -g | head -2'
 ```
 
-**Expected.** An IP, then `aarch64`, `4`, about `23` GB total memory, `Ubuntu 24.04.x LTS`.
+Answer `yes` when SSH asks whether to trust the new server.
 
-### P6. K3s, Helm and cert-manager on the VM
+**You should see.** An IP address, then `aarch64`, `4`, and a memory line showing about `23` total.
 
-**Do.**
+**If not.** `Out of host capacity`: Oracle has no free ARM machines in that spot right now. Open
+`terraform.tfvars`, add the line `availability_domain_index = 1`, run `terraform apply` again; try `2` next; if all
+fail, try again in a few hours. This is the most common obstacle and it is not your fault.
+`401 NotAuthenticated`: the key or config from P4 is wrong; re-check the `key_file` path.
+
+Write the IP down. Every later step calls it `<IP>`.
+
+### P6. Install Kubernetes on the server
+
+**What this is.** One script installs K3s (the small Kubernetes), Helm and cert-manager (which fetches free HTTPS
+certificates) on the server.
+
+**Do this.** Replace `<IP>` with your address:
 
 ```bash
-IP=$(cd infra/oci && terraform output -raw public_ip)
-ssh -i ~/.ssh/assetcare ubuntu@$IP 'sudo apt-get update -q && sudo apt-get -y -q dist-upgrade && sudo reboot' ; sleep 60
-scp -i ~/.ssh/assetcare deploy/k3s/install.sh ubuntu@$IP:
-ssh -i ~/.ssh/assetcare ubuntu@$IP 'bash install.sh'
+cd ~/spring-angular-production-blueprint
+scp -i ~/.ssh/assetcare deploy/k3s/install.sh ubuntu@<IP>:
+ssh -i ~/.ssh/assetcare ubuntu@<IP> 'sudo apt-get update -q && sudo apt-get -y -q dist-upgrade && bash install.sh'
 ```
 
-Then fetch the kubeconfig to your laptop so every later `kubectl`/`helm` runs from there:
+This takes about five minutes. Then copy the "key to the cluster" to your computer so you can control it from here:
 
 ```bash
-ssh -i ~/.ssh/assetcare ubuntu@$IP 'sudo cat /etc/rancher/k3s/k3s.yaml' | sed "s/127.0.0.1/$IP/" > ~/.kube/assetcare.yaml
+mkdir -p ~/.kube
+ssh -i ~/.ssh/assetcare ubuntu@<IP> 'sudo cat /etc/rancher/k3s/k3s.yaml' | sed "s/127.0.0.1/<IP>/" > ~/.kube/assetcare.yaml
 export KUBECONFIG=~/.kube/assetcare.yaml
 ```
 
-Port 6443 is not open to the internet by design; open an SSH tunnel instead: `ssh -i ~/.ssh/assetcare -L 6443:127.0.0.1:6443 ubuntu@$IP -N &`
-and keep `127.0.0.1` in the kubeconfig. Either works; the tunnel is safer.
-
-**Verify.**
+The `export` line must be typed again in every new terminal window you use for production work (or add it to the end
+of `~/.zshrc` / `~/.bashrc`). Because the cluster door (6443) is closed to the internet by the firewall, also open a
+tunnel through SSH and keep that window open while you work:
 
 ```bash
-kubectl get nodes -o wide
-kubectl -n kube-system get pods | grep -E "traefik|coredns"
-kubectl -n cert-manager get pods
-helm version --short
+ssh -i ~/.ssh/assetcare -L 6443:127.0.0.1:6443 ubuntu@<IP> -N
 ```
 
-**Expected.** One node `Ready` with `k3s` in the version; `traefik-...` and `coredns-...` `Running`; three cert-manager
-pods `Running`; Helm v4.
+and in `~/.kube/assetcare.yaml` change `<IP>` back to `127.0.0.1` (the tunnel delivers it). If that is confusing:
+run every `kubectl` and `helm` command of the next steps on the server itself instead, after
+`ssh -i ~/.ssh/assetcare ubuntu@<IP>` and `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml`; clone the project there
+with the `git clone` line from L7.
 
-### P7. Firewall: OCI security list and the VM's iptables
-
-**Do.** Terraform already opened 22, 80 and 443 in the subnet's security list, and `install.sh` opened 80 and 443 in
-iptables. Nothing to do unless you created the VM by hand: then Networking → VCN → subnet → security list → add ingress
-rules for TCP 80 and 443 from `0.0.0.0/0`, and on the VM run the two `iptables -I INPUT` lines from `install.sh`.
-
-**Verify.** From your laptop: `curl -sI http://$IP | head -1`
-
-**Expected.** `HTTP/1.1 404 Not Found` from Traefik. A timeout means one of the two firewalls still blocks port 80.
-
-### P8. DNS
-
-**Do.** At your DNS provider create an A record: `assetcare.yourdomain.tld → $IP` (TTL 300).
-
-**Verify.** `dig +short assetcare.yourdomain.tld` and `curl -sI http://assetcare.yourdomain.tld | head -1`
-
-**Expected.** The VM's IP, then the same 404 as P7. Propagation can take minutes; do not continue until `dig` answers,
-Let's Encrypt needs it in P9.
-
-### P9. ClusterIssuers
-
-**Do.**
+**Check.**
 
 ```bash
+kubectl get nodes
+kubectl -n cert-manager get pods
+```
+
+**You should see.** One line with `Ready`, and three lines with `Running`.
+
+**If not.** `connection refused` or `timeout`: the tunnel window is not open, or `KUBECONFIG` was not exported in
+this window.
+
+### P7. Check the doors are open
+
+**What this is.** Two firewalls protect the server (Oracle's and the server's own). Terraform and the installer
+opened doors 80 and 443 in both. This just checks.
+
+**Check.** `curl -sI http://<IP> | head -1`
+
+**You should see.** `HTTP/1.1 404 Not Found`. A 404 is correct here: the web server answers, it just has nothing at
+that address yet.
+
+**If not.** It hangs and then says `timed out`: in the Oracle console, Networking → Virtual cloud networks →
+`assetcare-vcn` → Security Lists → `assetcare-web`: there must be ingress rules for TCP 80 and 443 from `0.0.0.0/0`.
+Add them if missing.
+
+### P8. Point your domain at the server
+
+**What this is.** Telling the internet that `assetcare.yourdomain.tld` means your server's IP.
+
+**Do this.** At the website where you bought the domain, find "DNS" or "DNS records". Add a record: Type `A`, Name
+`assetcare` (or whatever word you want before your domain), Value `<IP>`, TTL 300 or "5 minutes". Save.
+
+**Check.** After a few minutes: `dig +short assetcare.yourdomain.tld`
+
+**You should see.** Your `<IP>`. If it prints nothing, wait five more minutes and repeat; DNS changes spread slowly.
+Do not continue before this works; the next step depends on it.
+
+### P9. Set up free HTTPS certificates
+
+**What this is.** Let's Encrypt gives free certificates (the padlock in the browser). cert-manager asks for them
+automatically; it just needs your email and a choice between the "staging" (practice) and "prod" (real) service.
+
+**Do this.** Replace the email:
+
+```bash
+cd ~/spring-angular-production-blueprint
 sed -i.bak 's/CHANGE-ME@example.com/you@example.com/' deploy/k3s/cluster-issuer.yaml
 kubectl apply -f deploy/k3s/cluster-issuer.yaml
 ```
 
-**Verify.** `kubectl get clusterissuer`
+**Check.** `kubectl get clusterissuer`
 
-**Expected.**
+**You should see.** Two lines, `letsencrypt-prod` and `letsencrypt-staging`, both with `READY True`.
 
-```text
-NAME                  READY   AGE
-letsencrypt-prod      True    10s
-letsencrypt-staging   True    10s
-```
+### P10. Create the passwords for production
 
-Use `letsencrypt-staging` for the first install (P12): it has generous rate limits and proves the whole chain; production
-allows only five duplicate certificates per week.
+**What this is.** Production must not use the practice passwords from your laptop. This generates strong random
+ones and stores them in Kubernetes where only the application can read them. You never need to type them.
 
-### P10. Namespace and the production Secret
-
-**Do.** Generate real secrets; never reuse the development ones from `.env.example`.
+**Do this.**
 
 ```bash
 kubectl create namespace assetcare
 gen() { openssl rand -base64 30 | tr -d '/+=' | cut -c1-32; }
-DB=$(gen); KC=$(gen); S3USER=assetcare; S3PW=$(gen)
+DB=$(gen); KC=$(gen); S3PW=$(gen)
 kubectl -n assetcare create secret generic assetcare-secrets \
   --from-literal=ASSETCARE_DB_PASSWORD="$DB" --from-literal=POSTGRES_PASSWORD="$DB" \
   --from-literal=KC_BOOTSTRAP_ADMIN_PASSWORD="$KC" \
-  --from-literal=MINIO_ROOT_USER="$S3USER" --from-literal=MINIO_ROOT_PASSWORD="$S3PW" \
-  --from-literal=ASSETCARE_S3_ACCESS_KEY="$S3USER" --from-literal=ASSETCARE_S3_SECRET_KEY="$S3PW"
-echo "Keycloak admin password: $KC"      # store it in your password manager now; it is not printed again
-# private GHCR packages only:
-# kubectl -n assetcare create secret docker-registry ghcr --docker-server=ghcr.io --docker-username=<github user> --docker-password=<token with read:packages>
+  --from-literal=MINIO_ROOT_USER=assetcare --from-literal=MINIO_ROOT_PASSWORD="$S3PW" \
+  --from-literal=ASSETCARE_S3_ACCESS_KEY=assetcare --from-literal=ASSETCARE_S3_SECRET_KEY="$S3PW"
+echo "Keycloak admin password: $KC"
 ```
 
-**Verify.** `kubectl -n assetcare get secret assetcare-secrets -o jsonpath='{.data}' | jq 'keys'`
+Copy the Keycloak admin password from the last line into your password manager now. It is the only one you will
+ever type (to manage users), and it is not shown again.
 
-**Expected.** The seven keys listed. The values are base64, not encrypted: an enterprise sources this Secret from a vault
-(External Secrets Operator) and enables encryption at rest; the chart only needs the name.
+**Check.** `kubectl -n assetcare get secret assetcare-secrets -o jsonpath='{.data}' | jq 'keys | length'`
 
-### P11. Realm redirect URIs for your host
+**You should see.** `7`
 
-**Do.** The chart imports `deploy/helm/assetcare/realm/assetcare-realm.json` on Keycloak's first start. Put your host in
-it, and remove the development users before anything public:
+### P11. Tell the login server your address
+
+**What this is.** Keycloak only sends people back to addresses it knows. Put your domain into the login
+configuration.
+
+**Do this.**
 
 ```bash
 sed -i.bak 's#assetcare.example.com#assetcare.yourdomain.tld#g' deploy/helm/assetcare/realm/assetcare-realm.json
 ```
 
-**Verify.** `grep -c "assetcare.yourdomain.tld" deploy/helm/assetcare/realm/assetcare-realm.json`
+**Check.** `grep -c "assetcare.yourdomain.tld" deploy/helm/assetcare/realm/assetcare-realm.json`
 
-**Expected.** `3` or more (redirect URI, web origin, post-logout URI). Commit this change on a branch of your own fork;
-the users' passwords in that file are development values and must be changed in the admin console after P12.
+**You should see.** `3` or more.
 
-### P12. Install the chart
+### P12. Install AssetCare on the server
 
-**Do.**
+**What this is.** One Helm command creates everything on the cluster: the database, the login server, the file
+storage, the backend, the frontend, the nightly backup, the HTTPS certificate.
+
+**Do this.** Use the practice certificate service first:
 
 ```bash
 helm upgrade --install assetcare deploy/helm/assetcare -n assetcare \
@@ -533,43 +641,55 @@ helm upgrade --install assetcare deploy/helm/assetcare -n assetcare \
   --wait --timeout 15m
 ```
 
-The first start takes several minutes: Keycloak imports the realm, the API runs Liquibase.
+The first time takes five to ten minutes. If your packages are private (P3), add
+`--set global.imagePullSecrets[0].name=ghcr` and create that secret first with the command in `DEPLOYMENT.md` §2.
 
-**Verify.**
+**Check.**
 
 ```bash
 kubectl -n assetcare get pods
-kubectl -n assetcare get certificate,ingress
-kubectl -n assetcare logs deploy/assetcare-api --tail=3
+kubectl -n assetcare get certificate
 ```
 
-**Expected.** Pods `assetcare-api`, `assetcare-frontend`, `assetcare-postgres-0`, `assetcare-keycloak-0`,
-`assetcare-minio-0` all `Running` and `1/1`; the `assetcare-minio-init` job `Completed`; certificate `assetcare-tls`
-`READY True`; the ingress shows your host and the IP; the last API log line contains `Started AssetCareApplication`.
-Then switch to the real issuer and run the same command with `--set ingress.clusterIssuer=letsencrypt-prod`; the
-certificate is re-issued within a minute.
+**You should see.** Five pods with `Running` and `1/1` (api, frontend, postgres-0, keycloak-0, minio-0), one
+`minio-init` with `Completed`, and the certificate `assetcare-tls` with `READY True`.
 
-### P13. HTTPS, smoke test, login
+Then run the exact same `helm upgrade` command once more with `letsencrypt-prod` instead of `letsencrypt-staging`.
+Within a minute the certificate is replaced by a real one.
 
-**Verify.**
+**If not.**
+- A pod stays `Pending` or `ContainerCreating` for more than five minutes: `kubectl -n assetcare describe pod <name>`,
+  read the "Events" at the bottom; `ImagePullBackOff` means P3's packages are private.
+- Certificate `READY False` after five minutes: `kubectl -n assetcare describe challenge`; the usual cause is P8 not
+  finished or P7's doors closed.
+- `helm` says `timed out waiting`: run the check commands anyway; slow first starts are common. If the api pod is
+  `CrashLoopBackOff`, `kubectl -n assetcare logs deploy/assetcare-api` shows the reason.
+
+### P13. Open it in the browser
+
+**Check.**
 
 ```bash
-curl -sI https://assetcare.yourdomain.tld | head -1
-curl -sv https://assetcare.yourdomain.tld 2>&1 | grep -E "issuer:|subject:"
 scripts/smoke-test.sh https://assetcare.yourdomain.tld
-curl -s https://assetcare.yourdomain.tld/config.json | jq -c .
+scripts/health.sh k8s assetcare
 ```
 
-Open `https://assetcare.yourdomain.tld` in a browser, log in as `alice`, create an asset. Then open
-`https://assetcare.yourdomain.tld/auth/admin/` as `admin` with the password from P10 and change every development
-user's password (or delete them and create your real users).
+Then open `https://assetcare.yourdomain.tld` in a browser and log in with `alice` / `alice-dev-password`.
 
-**Expected.** `HTTP/2 200`; issuer `Let's Encrypt` (`R1x`/`E1x`, not `STAGING`); `smoke test passed`; `config.json`
-with `https://` URLs and your host; the dashboard loads over HTTPS with the padlock.
+**You should see.** `smoke test passed`, a list of `OK` lines and `health: OK`, a padlock in the browser, and the
+AssetCare dashboard.
 
-### P14. Backups and a restore drill
+**Then, immediately.** The example users still have the practice passwords, and anyone on the internet can now
+reach the login page. Open `https://assetcare.yourdomain.tld/auth/admin/`, log in as `admin` with the Keycloak
+admin password from P10, choose the realm `assetcare` (top left), go to Users, and for `alice`, `bob`, `admin` and
+`audrey` either set a new password (Credentials tab) or delete the user. Create your real users the same way.
 
-**Do.** Backups run nightly (`backup.schedule`). Trigger one now instead of waiting:
+### P14. Make sure backups happen
+
+**What this is.** Every night at 02:30 a copy of the database is saved. You prove it works now instead of finding
+out on a bad day.
+
+**Do this.**
 
 ```bash
 kubectl -n assetcare create job --from=cronjob/assetcare-backup backup-now
@@ -577,53 +697,37 @@ kubectl -n assetcare wait --for=condition=complete job/backup-now --timeout=5m
 kubectl -n assetcare logs job/backup-now
 ```
 
-**Verify.** The log line, then a restore drill as in `docs/operations/BACKUP-RESTORE.md` (scale the API to zero,
-restore into a side database, swap, scale up, smoke test).
+**You should see.** A line `backup written: /backups/assetcare-<date>.sql.gz (<size>)`.
 
-**Expected.** `backup written: /backups/assetcare-<stamp>.sql.gz (<size>)`, and after the drill the asset count matches
-the count before it. Set `backup.s3Bucket`/`backup.s3Endpoint` to an OCI Object Storage bucket so dumps leave the VM;
-a backup on the same disk does not survive losing the VM.
+**Also do, once a month.** The restore drill in `docs/operations/BACKUP-RESTORE.md`. And read
+`docs/operations/OPERATIONS-GUIDE.md`: it explains, in the same plain style, how to check that everything is healthy,
+how to update to a new version, and what to do when something is wrong.
 
-You are in production. Day two lives in `docs/operations/RUNBOOK.md`; upgrades and rollback in
-`docs/operations/DEPLOYMENT.md`.
+**You are in production.** Congratulations. The whole setup is free while you stay within Oracle's free tier
+(the guide never leaves it), and everything you did is written in files, so you can do it again on a new server in an
+hour if this one disappears.
 
 ---
 
-## Reference
+## When something goes wrong: the general method
 
-### Troubleshooting
+1. Read the last five lines the terminal printed. The reason is almost always there, in plain English.
+2. Find the step number you are on and read its "If not".
+3. Look for the exact error text in the table below.
+4. Still stuck: open an issue on GitHub with the "Bug" template, paste the command, the last 20 lines of output, and
+   the step number. Do not paste passwords.
 
-| Symptom | Cause | Fix |
+| Exact words you see | Step | What to do |
 |---|---|---|
-| `make doctor`: port BUSY | another service listens there | `lsof -i :<port>`; stop it or change the port (L7 table) |
-| `docker compose up`: no space left | old images | `docker system prune -af --volumes` |
-| Keycloak never healthy | slow first import or too little memory | wait three minutes; give Docker 6 GB; `docker compose logs keycloak` |
-| API: connection refused to 5432 | L8 not up, or WSL networking | `docker compose ps`; in WSL use `localhost` |
-| API: `issuer did not match` | issuer differs between `.env` and the token | keep `http://localhost:8081/realms/assetcare` everywhere; do not mix `127.0.0.1` and `localhost` |
-| SPA login loops | redirect URI | the SPA must run on port 4200, or change the client in Keycloak |
-| Testcontainers: no Docker environment | socket not reachable | Docker running? Colima variables (L5)? `docker` group on Linux? |
-| `npm ci` fails on native modules | wrong Node | `nvm use 24` |
-| Terraform: Out of host capacity | no free A1 hosts right now | other `availability_domain_index`, retry later, or upgrade to Pay As You Go (still free within limits) |
-| P7 times out | firewall | OCI security list ingress 80/443 and VM iptables; both are needed |
-| Certificate stays `READY False` | DNS not propagated, port 80 blocked, or rate limit | `kubectl -n assetcare describe challenge`; use staging first |
-| Pods `ImagePullBackOff` | private GHCR packages | make them public or add the pull secret (P10) and `--set global.imagePullSecrets[0].name=ghcr` |
-| Keycloak login on production says invalid redirect | P11 skipped | fix the realm file and re-import, or edit the client in the admin console |
-
-### IDE
-
-- **IntelliJ IDEA**: open `backend` as a Maven project, SDK 25, annotation processing on; run configuration Spring Boot
-  with `me.janaka.assetcare.AssetCareApplication`, environment from `.env` (EnvFile plugin).
-- **VS Code**: Extension Pack for Java, Spring Boot Extension Pack, Angular Language Service, ESLint, Prettier; open the
-  repository root, `.editorconfig` applies.
-
-### Versions
-
-| Tool | Version | Why |
-|---|---|---|
-| Java | 25 (LTS) | `backend/pom.xml`; Spring Boot 4.1 needs 17+, 25 is the current LTS |
-| Maven | 3.9.16 via wrapper | pinned in `backend/.mvn/wrapper/maven-wrapper.properties` |
-| Node.js / npm | 24 (LTS) / 11 | Angular 22 supports 22.12+ and 24; CI uses 24 |
-| Docker | 27+ with Compose v2 and BuildKit | `docker compose` syntax; Dockerfiles use BuildKit cache mounts |
-| kubectl / Helm / Terraform | 1.29+ / 4.3+ / 1.6+ | chart `kubeVersion`, lint version, `required_version` |
-| K3s / cert-manager | v1.37 / v1.21 | pinned in `deploy/k3s/install.sh` |
-| GitHub CLI | 2.x | workflow scope, watching runs |
+| `command not found` | any | the tool from that step is not installed, or the terminal was not reopened after installing |
+| `permission denied` | L5, L7 | Ubuntu: log out and in after adding yourself to the docker group; macOS: Docker Desktop not running |
+| `port is already allocated` / `BUSY` | L7, L8 | another program uses that door; `lsof -i :<port>` shows which |
+| `Cannot connect to the Docker daemon` | L8+ | open Docker Desktop and wait for the whale to be still |
+| `Connection refused` on 8080 | L9 | the backend is not running or not finished starting |
+| login page comes back after logging in | L10 | use exactly `http://localhost:4200` |
+| `Out of host capacity` | P5 | Oracle has no free ARM machine now; change `availability_domain_index`, retry later |
+| `NotAuthenticated` | P5 | the `~/.oci/config` from P4 is wrong |
+| `refusing to allow an OAuth App to create or update workflow` | P2 | run the `gh auth refresh` line again |
+| `ImagePullBackOff` | P12 | packages are private; make them public (P3) |
+| `READY False` on the certificate | P12 | DNS (P8) or doors (P7); `kubectl -n assetcare describe challenge` |
+| padlock with a warning | P12 | you are still on the staging certificate; run the prod helm command |

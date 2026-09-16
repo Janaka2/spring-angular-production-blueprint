@@ -15,7 +15,7 @@ scripts/health.sh k8s assetcare      # a cluster namespace: pods, probes, certif
 It prints one line per check with OK / WARN / FAIL and the runbook section to open.
 
 ## 2. Map the symptom to the runbook
-`docs/operations/RUNBOOK.md` is organised by symptom (restarting pods, 401 for everyone, slow requests, disk full,
+`docs/operations/OPERATIONS-GUIDE.md` (plain language) and `docs/operations/RUNBOOK.md` (expert) are organised by symptom (restarting pods, 401 for everyone, slow requests, disk full,
 attachments failing, certificate not issued). Alerts in `observability/prometheus/rules.yml` carry a `runbook`
 annotation with the section. Follow the section: check → do → confirm. Do not restart things before the check.
 

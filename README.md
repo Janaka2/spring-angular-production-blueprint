@@ -46,8 +46,9 @@ has been executed.
 
 ## How do I run it?
 
-Requirements: Java 25, Node 24, Docker with Compose v2. `make doctor` checks. Setting up a machine from nothing, local (L1 to L12) and
-production (P1 to P14), each step with a verification, is in `docs/ENVIRONMENT-SETUP.md`.
+Requirements: Java 25, Node 24, Docker with Compose v2. `make doctor` checks. Never done this before? `docs/ENVIRONMENT-SETUP.md` starts from
+zero (what a terminal is) and takes you to a running local copy (L1 to L12) and to production (P1 to P14), checking
+after every step. Then `docs/operations/OPERATIONS-GUIDE.md` explains how to keep it running.
 
 ```bash
 git clone https://github.com/Janaka2/spring-angular-production-blueprint.git
@@ -96,7 +97,8 @@ Read `docs/architecture/ARCHITECTURE.md` for the dependency direction and where 
 
 ## Documentation map
 
-- `docs/ENVIRONMENT-SETUP.md` — developer, CI and deployment machine setup, step by step
+- `docs/ENVIRONMENT-SETUP.md` — setup from zero, local and production, written for beginners; each step verified
+- `docs/operations/OPERATIONS-GUIDE.md` — keeping it running, in plain language; `RUNBOOK.md` is the expert version
 - `docs/HOW-TO-MODIFY.md` — the playbook for common changes; the same playbook as AI skills in `.claude/skills/`
 - `docs/architecture/` — architecture, domain model, Oracle migration
 - `docs/adr/` — architecture decision records
