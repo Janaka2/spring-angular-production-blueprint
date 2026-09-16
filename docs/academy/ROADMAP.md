@@ -55,5 +55,9 @@ balancer beyond the free 10 Mbps flexible one, block volumes beyond 200 GB, and 
 
 ## Definition of Done
 
+The activity-by-activity list with proof and status, from clone to routine operations and the known improvements,
+is `docs/PATH-TO-PRODUCTION.md`.
+
+
 The project is done when a developer can do every one of the 24 steps in `docs/DEFINITION-OF-DONE.md`, and the
 verification report at the end of `README.md` shows each check as PASS or NOT EXECUTED with the reason.
