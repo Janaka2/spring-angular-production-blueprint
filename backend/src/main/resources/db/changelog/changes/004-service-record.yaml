@@ -1,0 +1,28 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-service-record
+      author: janaka
+      comment: History of what was done to an asset. Optionally completes a maintenance item. Never deleted.
+      changes:
+        - createTable:
+            tableName: service_record
+            columns:
+              - column: { name: id,                  type: uuid,          constraints: { primaryKey: true, primaryKeyName: pk_service_record } }
+              - column: { name: asset_id,            type: uuid,          constraints: { nullable: false, foreignKeyName: fk_service_record_asset, references: asset(id) } }
+              - column: { name: maintenance_item_id, type: uuid,          constraints: { foreignKeyName: fk_service_record_item, references: maintenance_item(id) } }
+              - column: { name: performed_on,        type: date,          constraints: { nullable: false } }
+              - column: { name: performed_by,        type: varchar(200) }
+              - column: { name: summary,             type: varchar(500),  constraints: { nullable: false } }
+              - column: { name: cost,                type: "numeric(14,2)" }
+              - column: { name: currency,            type: char(3) }
+              - column: { name: notes,               type: varchar(2000) }
+              - column: { name: created_at,          type: timestamp with time zone, constraints: { nullable: false } }
+              - column: { name: created_by,          type: varchar(120),  constraints: { nullable: false } }
+        - createIndex:
+            indexName: ix_service_record_asset_date
+            tableName: service_record
+            columns:
+              - column: { name: asset_id }
+              - column: { name: performed_on, descending: true }
+      rollback:
+        - dropTable: { tableName: service_record }

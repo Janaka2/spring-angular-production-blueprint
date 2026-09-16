@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-category
+      author: janaka
+      comment: Categories are reference data that admins manage; code is the stable key used by the UI and imports.
+      changes:
+        - createTable:
+            tableName: category
+            columns:
+              - column: { name: id,          type: uuid,          constraints: { primaryKey: true, primaryKeyName: pk_category } }
+              - column: { name: code,        type: varchar(40),   constraints: { nullable: false, unique: true, uniqueConstraintName: uq_category_code } }
+              - column: { name: name,        type: varchar(80),   constraints: { nullable: false } }
+              - column: { name: description, type: varchar(500) }
+              - column: { name: active,      type: boolean,       defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: sort_order,  type: integer,       defaultValueNumeric: 100,  constraints: { nullable: false } }
+              - column: { name: created_at,  type: timestamp with time zone, constraints: { nullable: false } }
+              - column: { name: updated_at,  type: timestamp with time zone, constraints: { nullable: false } }
+      rollback:
+        - dropTable: { tableName: category }

@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-attachment
+      author: janaka
+      comment: Metadata only (ADR-007). storage_key points into object storage; sha256 lets a download be verified.
+      changes:
+        - createTable:
+            tableName: attachment
+            columns:
+              - column: { name: id,           type: uuid,          constraints: { primaryKey: true, primaryKeyName: pk_attachment } }
+              - column: { name: asset_id,     type: uuid,          constraints: { nullable: false, foreignKeyName: fk_attachment_asset, references: asset(id) } }
+              - column: { name: file_name,    type: varchar(255),  constraints: { nullable: false } }
+              - column: { name: content_type, type: varchar(100),  constraints: { nullable: false } }
+              - column: { name: size_bytes,   type: bigint,        constraints: { nullable: false } }
+              - column: { name: storage_key,  type: varchar(300),  constraints: { nullable: false, unique: true, uniqueConstraintName: uq_attachment_storage_key } }
+              - column: { name: sha256,       type: char(64),      constraints: { nullable: false } }
+              - column: { name: uploaded_by,  type: varchar(120),  constraints: { nullable: false } }
+              - column: { name: uploaded_at,  type: timestamp with time zone, constraints: { nullable: false } }
+        - createIndex:
+            indexName: ix_attachment_asset
+            tableName: attachment
+            columns:
+              - column: { name: asset_id }
+      rollback:
+        - dropTable: { tableName: attachment }

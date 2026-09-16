@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 900-dev-demo-assets
+      author: janaka
+      context: dev
+      comment: Demo assets for local development and screenshots. Owners are the Keycloak subject ids of the dev realm users, resolved at runtime by the DevDataInitializer; this changeset only reserves the changelog entry so the dev context is visible in DATABASECHANGELOG.
+      changes:
+        - empty
+      rollback:
+        - empty

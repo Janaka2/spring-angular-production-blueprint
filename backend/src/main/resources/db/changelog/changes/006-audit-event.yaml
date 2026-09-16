@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-audit-event
+      author: janaka
+      comment: Business audit trail, written in the same transaction as the change. Not an operational log. Append-only.
+      changes:
+        - createTable:
+            tableName: audit_event
+            columns:
+              - column: { name: id,             type: uuid,          constraints: { primaryKey: true, primaryKeyName: pk_audit_event } }
+              - column: { name: occurred_at,    type: timestamp with time zone, constraints: { nullable: false } }
+              - column: { name: actor,          type: varchar(120),  constraints: { nullable: false } }
+              - column: { name: operation,      type: varchar(20),   constraints: { nullable: false } }
+              - column: { name: entity_type,    type: varchar(40),   constraints: { nullable: false } }
+              - column: { name: entity_id,      type: uuid,          constraints: { nullable: false } }
+              - column: { name: changed_fields, type: ${json.type} }
+              - column: { name: request_id,     type: varchar(64) }
+              - column: { name: trace_id,       type: varchar(32) }
+        - createIndex:
+            indexName: ix_audit_event_entity
+            tableName: audit_event
+            columns:
+              - column: { name: entity_type }
+              - column: { name: entity_id }
+              - column: { name: occurred_at, descending: true }
+      rollback:
+        - dropTable: { tableName: audit_event }

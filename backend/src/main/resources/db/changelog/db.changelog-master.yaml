@@ -1,0 +1,19 @@
+# Master changelog. One file per table, in dependency order, plus reference data and development demo data.
+databaseChangeLog:
+  - property:
+      name: json.type
+      value: jsonb
+      dbms: postgresql
+  - property:
+      name: json.type
+      value: clob
+      dbms: oracle
+  - include: { file: changes/001-category.yaml,          relativeToChangelogFile: true }
+  - include: { file: changes/002-asset.yaml,             relativeToChangelogFile: true }
+  - include: { file: changes/003-maintenance-item.yaml,  relativeToChangelogFile: true }
+  - include: { file: changes/004-service-record.yaml,    relativeToChangelogFile: true }
+  - include: { file: changes/005-attachment.yaml,        relativeToChangelogFile: true }
+  - include: { file: changes/006-audit-event.yaml,       relativeToChangelogFile: true }
+  - include: { file: changes/007-idempotency-key.yaml,   relativeToChangelogFile: true }
+  - include: { file: changes/100-reference-data.yaml,    relativeToChangelogFile: true }
+  - include: { file: changes/900-dev-demo-data.yaml,     relativeToChangelogFile: true }

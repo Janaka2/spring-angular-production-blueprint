@@ -1,0 +1,105 @@
+# AssetCare API configuration. Every environment-specific value is a placeholder with a development default
+# that matches docker-compose.yml. Production overrides them through environment variables (Helm values → Secrets).
+spring:
+  application:
+    name: assetcare-api
+  datasource:
+    url: ${ASSETCARE_DB_URL:jdbc:postgresql://localhost:5432/assetcare}
+    username: ${ASSETCARE_DB_USERNAME:assetcare}
+    password: ${ASSETCARE_DB_PASSWORD:assetcare-dev-password}
+    hikari:
+      maximum-pool-size: ${ASSETCARE_DB_POOL_SIZE:10}
+      minimum-idle: 2
+      connection-timeout: 5000
+      pool-name: assetcare
+  jpa:
+    open-in-view: false            # no lazy loading from controllers; the application layer shapes the data
+    hibernate:
+      ddl-auto: validate           # the schema comes from Liquibase; a drift fails startup instead of hiding
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    contexts: ${ASSETCARE_LIQUIBASE_CONTEXTS:dev}   # "dev" also loads demo data; production sets "prod"
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${ASSETCARE_OIDC_ISSUER:http://localhost:8081/realms/assetcare}
+          audiences: assetcare-api
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+  threads:
+    virtual:
+      enabled: true                # Java 25 virtual threads for request handling
+  docker:
+    compose:
+      enabled: false               # dependencies are started explicitly with docker compose / make deps
+
+assetcare:
+  cors:
+    allowed-origins: ${ASSETCARE_CORS_ORIGINS:http://localhost:4200}
+  storage:
+    type: ${ASSETCARE_STORAGE_TYPE:filesystem}        # filesystem | s3
+    filesystem:
+      root: ${ASSETCARE_STORAGE_ROOT:./data/attachments}
+    s3:
+      endpoint: ${ASSETCARE_S3_ENDPOINT:http://localhost:9002}
+      region: ${ASSETCARE_S3_REGION:eu-zurich-1}
+      bucket: ${ASSETCARE_S3_BUCKET:assetcare-attachments}
+      access-key: ${ASSETCARE_S3_ACCESS_KEY:assetcare}
+      secret-key: ${ASSETCARE_S3_SECRET_KEY:assetcare-dev-password}
+      path-style: true
+  attachments:
+    max-size-bytes: 10485760
+    allowed-content-types: image/jpeg,image/png,image/webp,application/pdf,text/plain
+  api:
+    max-page-size: 100
+
+server:
+  port: ${ASSETCARE_PORT:8080}
+  shutdown: graceful               # finish in-flight requests when Kubernetes sends SIGTERM
+  forward-headers-strategy: framework
+  error:
+    include-stacktrace: never      # Problem Details only; never a Java stack trace to a client
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true              # /actuator/health/liveness and /readiness for Kubernetes
+      show-details: when-authorized
+      group:
+        readiness:
+          include: readinessState,db
+  info:
+    build:
+      enabled: true
+    git:
+      enabled: true
+      mode: simple
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${ASSETCARE_TRACE_SAMPLING:1.0}
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+
+logging:
+  structured:
+    format:
+      console: ${ASSETCARE_LOG_FORMAT:}   # empty = human-readable locally; "ecs" or "logstash" in containers
+  level:
+    me.janaka.assetcare: INFO
+    org.hibernate.SQL: ${ASSETCARE_LOG_SQL:INFO}

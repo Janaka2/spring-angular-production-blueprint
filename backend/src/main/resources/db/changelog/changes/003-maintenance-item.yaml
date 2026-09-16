@@ -1,0 +1,38 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-maintenance-item
+      author: janaka
+      comment: What is due for an asset. Recurrence is an ISO-8601 period (P1M, P3M, P1Y) or NULL for one-off.
+      changes:
+        - createTable:
+            tableName: maintenance_item
+            columns:
+              - column: { name: id,               type: uuid,           constraints: { primaryKey: true, primaryKeyName: pk_maintenance_item } }
+              - column: { name: asset_id,         type: uuid,           constraints: { nullable: false, foreignKeyName: fk_maintenance_item_asset, references: asset(id) } }
+              - column: { name: maintenance_type, type: varchar(20),    constraints: { nullable: false } }
+              - column: { name: description,      type: varchar(500),   constraints: { nullable: false } }
+              - column: { name: due_date,         type: date,           constraints: { nullable: false } }
+              - column: { name: recurrence,       type: varchar(20) }
+              - column: { name: status,           type: varchar(20),    constraints: { nullable: false } }
+              - column: { name: completed_date,   type: date }
+              - column: { name: cost,             type: "numeric(14,2)" }
+              - column: { name: currency,         type: char(3) }
+              - column: { name: service_provider, type: varchar(200) }
+              - column: { name: notes,            type: varchar(2000) }
+              - column: { name: version,          type: bigint,         defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: created_at,       type: timestamp with time zone, constraints: { nullable: false } }
+              - column: { name: created_by,       type: varchar(120),   constraints: { nullable: false } }
+              - column: { name: updated_at,       type: timestamp with time zone, constraints: { nullable: false } }
+              - column: { name: updated_by,       type: varchar(120),   constraints: { nullable: false } }
+        - sql:
+            sql: ALTER TABLE maintenance_item ADD CONSTRAINT ck_maintenance_type CHECK (maintenance_type IN ('SERVICE','INSPECTION','REPLACEMENT','CLEANING','OTHER')), ADD CONSTRAINT ck_maintenance_status CHECK (status IN ('PLANNED','DONE','CANCELLED')), ADD CONSTRAINT ck_maintenance_cost CHECK (cost IS NULL OR cost >= 0)
+        - createIndex:
+            indexName: ix_maintenance_item_asset
+            tableName: maintenance_item
+            columns:
+              - column: { name: asset_id }
+        - sql:
+            comment: The dashboard asks "what is due soon?" across an owner's assets; the join goes asset → item, filtered by status and due_date.
+            sql: CREATE INDEX ix_maintenance_item_due ON maintenance_item (due_date) WHERE status = 'PLANNED'
+      rollback:
+        - dropTable: { tableName: maintenance_item }

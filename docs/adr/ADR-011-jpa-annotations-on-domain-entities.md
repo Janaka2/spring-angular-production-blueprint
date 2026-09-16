@@ -15,7 +15,7 @@ inside the domain.
 
 ## Decision
 
-Domain classes carry `jakarta.persistence` and `jakarta.validation` annotations and nothing else from outside the JDK.
+Domain classes carry `jakarta.persistence` and `jakarta.validation` annotations, plus JSpecify nullness annotations and, for JSON columns only, Hibernate's `@JdbcTypeCode`; nothing else from outside the JDK.
 No Spring, no Hibernate-specific types, no HTTP, no cloud SDK. ArchUnit enforces exactly that allowlist. Ports are
 interfaces in the application layer; Spring Data repositories in the persistence adapter extend them.
 

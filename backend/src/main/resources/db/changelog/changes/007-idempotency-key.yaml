@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-idempotency-key
+      author: janaka
+      comment: Stores the response of a completed POST /assets per (owner, Idempotency-Key) so a retried submission returns the same result instead of a duplicate asset.
+      changes:
+        - createTable:
+            tableName: idempotency_key
+            columns:
+              - column: { name: owner,        type: varchar(120), constraints: { nullable: false } }
+              - column: { name: key,          type: varchar(64),  constraints: { nullable: false } }
+              - column: { name: request_hash, type: char(64),     constraints: { nullable: false } }
+              - column: { name: entity_id,    type: uuid,         constraints: { nullable: false } }
+              - column: { name: created_at,   type: timestamp with time zone, constraints: { nullable: false } }
+        - addPrimaryKey: { tableName: idempotency_key, columnNames: "owner, key", constraintName: pk_idempotency_key }
+      rollback:
+        - dropTable: { tableName: idempotency_key }

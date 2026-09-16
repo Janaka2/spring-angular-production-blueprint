@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 100-categories
+      author: janaka
+      comment: Default categories. Admins can add more; these ids are stable so imports and tests can rely on them.
+      changes:
+        - loadUpdateData:
+            tableName: category
+            primaryKey: id
+            file: data/categories.csv
+            relativeToChangelogFile: true
+            columns:
+              - column: { name: id, type: uuid }
+              - column: { name: code, type: string }
+              - column: { name: name, type: string }
+              - column: { name: description, type: string }
+              - column: { name: active, type: boolean }
+              - column: { name: sort_order, type: numeric }
+              - column: { name: created_at, type: computed, defaultValueComputed: CURRENT_TIMESTAMP }
+              - column: { name: updated_at, type: computed, defaultValueComputed: CURRENT_TIMESTAMP }
+      rollback:
+        - delete: { tableName: category }
