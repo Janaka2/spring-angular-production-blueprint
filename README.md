@@ -39,9 +39,10 @@ has been executed.
 | 2 Starter: PostgreSQL schema and migrations | done |
 | 3 Soup: Spring Boot service | done (integration tests run in CI) |
 | 4 Main course: Angular application | done (end-to-end flow runs in CI) |
-| 5 Side dishes: quality, security, reliability | not started |
-| 6 Dessert: observability | not started |
-| 7 Coffee: deployment, CI/CD, operations | not started |
+| 5 Side dishes: quality, security, reliability | done (scans, SBOM and the restore drill run in CI) |
+| 6 Dessert: observability | done (stack starts with `make observability`) |
+| 7 Coffee: deployment, CI/CD, operations | done (chart linted and rendered; images built in CI; OCI install documented, NOT EXECUTED) |
+| Academy article | done: [janaka.me/academy/production-ready-spring-angular](https://janaka.me/academy/production-ready-spring-angular/) (source: `docs/academy/ARTICLE.md`) |
 
 ## How do I run it?
 
@@ -105,18 +106,32 @@ Read `docs/architecture/ARCHITECTURE.md` for the dependency direction and where 
 Updated at the end of each course. Only executed checks are marked PASS.
 
 ```text
-Backend compile (Java 25, Spring Boot 4.1.1)     PASS   (2026-09-16, local, ./mvnw compile)
-Backend unit + architecture tests                PASS   (2026-09-16, local, 21 tests: domain, use cases, ArchUnit)
-Integration tests (Testcontainers, PostgreSQL 18) NOT EXECUTED locally (no Docker on the build machine); runs in CI
-Frontend build (Angular 22.1)                    PASS   (2026-09-16, local, ng build, 548 kB initial)
-Frontend lint (angular-eslint, Prettier)         PASS   (2026-09-16, local)
-Frontend unit tests (Vitest)                     PASS   (2026-09-16, local, 10 tests)
-Docker build amd64 / arm64                       NOT EXECUTED (course 7, CI)
-Helm lint / template                             NOT EXECUTED (course 7)
-Security scans                                   NOT EXECUTED (course 5, CI)
-E2E (Playwright)                                 NOT EXECUTED (course 4/5, CI)
-OCI deployment                                   NOT EXECUTED
-Smoke test                                       NOT EXECUTED
+Executed by the author (2026-09-16, macOS, no Docker daemon available):
+Backend compile (Java 25, Spring Boot 4.1.1)        PASS   ./mvnw compile
+Backend unit + architecture tests                   PASS   21 tests: domain, use cases, ArchUnit
+Frontend build (Angular 22.1)                       PASS   ng build, 548 kB initial, under budget
+Frontend lint + format (angular-eslint, Prettier)   PASS
+Frontend unit tests (Vitest)                        PASS   10 tests
+Helm lint (Helm 4.3.0)                              PASS   0 charts failed
+Helm template, core values                          PASS   19 objects rendered
+Helm template, enterprise values (external DB/IdP/  PASS   10 objects rendered, no development password in output
+  object storage, existingSecret, HPA, ServiceMonitor)
+Version matrix                                      PASS   every version checked against its official source
+
+Delegated to GitHub Actions (.github/workflows on branch ci/pipeline; needs the workflow scope to be pushed):
+Integration tests (Testcontainers, PostgreSQL 18)   NOT EXECUTED locally; job backend
+Backup → wipe → restore drill                       NOT EXECUTED locally; job backup-restore
+E2E (Playwright, real Keycloak + API + SPA)         NOT EXECUTED locally; job e2e
+Docker builds amd64/arm64, config.json render check NOT EXECUTED locally; jobs images (ci) and images (release)
+Trivy (fs, images), CodeQL, dependency review,      NOT EXECUTED locally; workflow security
+  gitleaks
+k6 load test                                        NOT EXECUTED; scripts and thresholds in performance/
+Observability stack with real traffic               NOT EXECUTED; docker-compose.observability.yml validated in CI
+Terraform validate (infra/oci)                      NOT EXECUTED locally; job helm
+
+Not executed anywhere yet:
+OCI VM + K3s installation, DNS, TLS issuance        NOT EXECUTED (no OCI tenancy in the build environment); documented step by step with a check per step
+Smoke test against a deployed instance              NOT EXECUTED; scripts/smoke-test.sh runs in the e2e job against localhost
 ```
 
 ## Licence
