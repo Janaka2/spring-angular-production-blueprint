@@ -46,7 +46,8 @@ has been executed.
 
 ## How do I run it?
 
-Requirements: Java 25, Node 24 or newer, Docker with Compose v2. `make doctor` checks.
+Requirements: Java 25, Node 24, Docker with Compose v2. `make doctor` checks. Setting up a machine from nothing, with a
+check after every step, is in `docs/ENVIRONMENT-SETUP.md`.
 
 ```bash
 git clone https://github.com/Janaka2/spring-angular-production-blueprint.git
@@ -93,6 +94,7 @@ Read `docs/architecture/ARCHITECTURE.md` for the dependency direction and where 
 
 ## Documentation map
 
+- `docs/ENVIRONMENT-SETUP.md` — developer, CI and deployment machine setup, step by step
 - `docs/architecture/` — architecture, domain model, Oracle migration
 - `docs/adr/` — architecture decision records
 - `docs/operations/` — deployment, OCI free tier, runbook, backup and restore, scaling, observability

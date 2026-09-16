@@ -157,4 +157,4 @@ The [Definition of Done](https://github.com/Janaka2/spring-angular-production-bl
 | audit table | Kafka, when another system must consume events | an outbox next to `audit_event` |
 | `helm upgrade` from a laptop | Argo CD | point it at the chart directory |
 
-Clone it. Run `make doctor`, `docker compose up -d --wait`, `make backend`, `make frontend`, log in as `alice`. Then read one ADR a day and change the thing you disagree with. The kitchen is yours.
+Clone it. Set up the machine with [the environment guide](https://github.com/Janaka2/spring-angular-production-blueprint/blob/main/docs/ENVIRONMENT-SETUP.md), which has a check after every step, then `docker compose up -d --wait`, `make backend`, `make frontend`, and log in as `alice`. Then read one ADR a day and change the thing you disagree with. The kitchen is yours.

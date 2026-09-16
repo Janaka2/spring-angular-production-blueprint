@@ -12,9 +12,27 @@ MVN := ./mvnw -q -B
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 
-doctor: ## check the tools this repository needs
-	@for c in java node npm docker; do printf '%-8s' $$c; command -v $$c >/dev/null && $$c --version 2>&1 | head -1 || echo "MISSING"; done
-	@docker compose version 2>/dev/null || echo "docker compose MISSING"
+doctor: ## check tools, versions, the Docker daemon and free ports (docs/ENVIRONMENT-SETUP.md)
+	@ok=0; \
+	check() { out=$$($$2 2>&1 | head -1); if command -v $$1 >/dev/null 2>&1 && ! echo "$$out" | grep -q "Unable to locate"; then printf '  %-14s %s\n' "$$1" "$$out"; else printf '  %-14s MISSING  (%s)\n' "$$1" "$$3"; ok=1; fi; }; \
+	echo "tools:"; \
+	check java "java -version" "step 3: Java 25"; \
+	check node "node --version" "step 4: Node 24"; \
+	check npm "npm --version" "step 4"; \
+	check docker "docker --version" "step 5: Docker"; \
+	check git "git --version" "step 2"; \
+	check curl "curl --version" "step 6"; \
+	check jq "jq --version" "optional: brew install jq / apt-get install jq"; \
+	check helm "helm version --short" "optional, part C"; \
+	check kubectl "kubectl version --client" "optional, part C"; \
+	if java -version >/dev/null 2>&1; then v=$$(java -version 2>&1 | head -1 | sed -E 's/.*"([0-9]+).*/\1/'); [ "$$v" -ge 25 ] 2>/dev/null || { echo "  java           version $$v found, 25 required"; ok=1; }; fi; \
+	if command -v node >/dev/null 2>&1; then v=$$(node --version | sed -E 's/v([0-9]+).*/\1/'); [ "$$v" -ge 22 ] 2>/dev/null || { echo "  node           version $$v found, 22.12+ required (24 recommended)"; ok=1; }; fi; \
+	echo "docker:"; \
+	if docker info >/dev/null 2>&1; then printf '  daemon         reachable (%s)\n' "$$(docker compose version 2>/dev/null | head -1)"; else echo "  daemon         NOT REACHABLE: start Docker (step 5)"; ok=1; fi; \
+	echo "ports (must be free before docker compose up / make backend / make frontend):"; \
+	for p in 5432 8081 9000 9002 9001 8080 4200; do if (command -v lsof >/dev/null && lsof -nP -iTCP:$$p -sTCP:LISTEN >/dev/null 2>&1) || (command -v ss >/dev/null && ss -ltn 2>/dev/null | grep -q ":$$p "); then printf '  %-6s BUSY\n' $$p; ok=1; else printf '  %-6s free\n' $$p; fi; done; \
+	[ -f .env ] && echo ".env: present" || echo ".env: missing, run: cp .env.example .env"; \
+	[ $$ok -eq 0 ] && echo "doctor: ready" || echo "doctor: fix the items above (docs/ENVIRONMENT-SETUP.md)"
 
 deps: ## start PostgreSQL, Keycloak and MinIO for local development
 	docker compose up -d --wait
