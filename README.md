@@ -46,8 +46,8 @@ has been executed.
 
 ## How do I run it?
 
-Requirements: Java 25, Node 24, Docker with Compose v2. `make doctor` checks. Setting up a machine from nothing, with a
-check after every step, is in `docs/ENVIRONMENT-SETUP.md`.
+Requirements: Java 25, Node 24, Docker with Compose v2. `make doctor` checks. Setting up a machine from nothing, local (L1 to L12) and
+production (P1 to P14), each step with a verification, is in `docs/ENVIRONMENT-SETUP.md`.
 
 ```bash
 git clone https://github.com/Janaka2/spring-angular-production-blueprint.git
