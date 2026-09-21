@@ -24,6 +24,22 @@ It is served as a meal because the order matters. You do not plate the main cour
 
 > **Free first, enterprise ready.** Everything runs on free tiers and open source. Where an enterprise would swap a piece (Oracle for PostgreSQL, a corporate identity provider, a vault, managed Kubernetes), the seam is a documented value, not a rewrite. `docs/PRODUCTION-GAPS.md` lists every such seam honestly.
 
+<!-- eyebrow: The whole picture · Assembled step by step -->
+## Every component in its place, and the order they go in.
+
+Before the courses, the finished system on one board: where each part physically runs (a laptop, GitHub, one cloud
+VM, a Kubernetes cluster with two namespaces), what each part does, and the fourteen steps that assemble it from a
+git clone to a monitored production. Walk the steps; every component lights up where it lives and wires into what it
+talks to. Click a component for its role, the files that define it, the command that puts it there and the check
+that proves it works. The last step follows one error from a user’s screen to the log line, the trace and the alert.
+
+<!-- include: @content/production-builder.html -->
+
+> **Keep this** Two loops. The inner loop is on the laptop: code, Compose, tests. The outer loop is the pipeline:
+> pull request, CI, signed images, a version tag, `helm upgrade`, smoke test, dashboard. Between them sits one VM
+> running K3s, where Traefik is the only door, the API is the only writer to the database, and every log line carries
+> the request id that lets you find it again.
+
 <!-- eyebrow: Course 1 · Mise en place -->
 ## Everything in its place before the heat goes on
 
