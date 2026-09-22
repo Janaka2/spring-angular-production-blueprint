@@ -268,22 +268,28 @@ make backend
 ```
 
 The first time it downloads a lot (three minutes). It is ready when a line appears that contains
-`Started AssetCareApplication`. Leave this window open.
+`Started AssetcareApiApplication`, followed by `demo data loaded`. Leave this window open.
+
+While it runs you may see long `ConnectException` stack traces from `OtlpHttpMetricsSender` every minute. They are
+harmless: the API tries to send metrics to the observability stack of L12, which is not running yet.
 
 **Check.** Open a **second** terminal window, go to the project folder (`cd ~/spring-angular-production-blueprint`),
 then:
 
 ```bash
-curl -s http://localhost:8080/actuator/health | jq -c '{status, db: .components.db.status}'
+curl -s http://localhost:8080/actuator/health/readiness | jq -c .
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/api/v1/assets
 ```
 
-**You should see.** `{"status":"UP","db":"UP"}` and then `401`. The 401 is good: it means the API refuses people
+**You should see.** `{"status":"UP"}` and then `401`. Readiness is only UP when the database answers. (Per-component
+details such as `db` are shown only to logged-in callers, so the plain `/actuator/health` does not list them.) The 401 is good: it means the API refuses people
 who have not logged in.
 
-**If not.** `Connection refused`: the backend is still starting, wait for `Started AssetCareApplication`. An error in
+**If not.** `Connection refused`: the backend is still starting, wait for `Started AssetcareApiApplication`. An error in
 the first window mentioning `5432` or `datasource`: the database is not up, go back to L8. An error mentioning
-`issuer`: Keycloak is not up, same.
+`issuer`: Keycloak is not up, same. `APPLICATION FAILED TO START` with `required a single bean, but 2 were found`
+(`corsConfigurationSource`), or `Ambiguous @ExceptionHandler method mapped for MaxUploadSizeExceededException`: your
+copy is older than commit `c91e9cf`; `git pull` and run `make backend` again.
 
 Bonus, to prove a login works without a browser:
 
@@ -293,7 +299,7 @@ TOKEN=$(curl -s -X POST http://localhost:8081/realms/assetcare/protocol/openid-c
 curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/me | jq -c .
 ```
 
-You should see a line containing `"username":"alice"`.
+You should see `{"subject":"10000000-0000-0000-0000-000000000001","displayName":"alice","roles":["USER"]}`.
 
 ### L10. Start the frontend and log in
 
@@ -338,11 +344,15 @@ cd frontend && npx playwright install --with-deps chromium && cd ..
 make e2e
 ```
 
-Each takes between 30 seconds and 3 minutes.
+Each takes between 30 seconds and 3 minutes. `--with-deps` installs the browser's system libraries with `sudo`, so
+it asks for your password. On Ubuntu under WSL, if you ran only `npx playwright install chromium` (without
+`--with-deps`), `make e2e` fails with `libnspr4.so: cannot open shared object file`; fix it with
+`cd frontend && sudo npx playwright install-deps chromium`.
 
-**You should see.** Each command ends with a success line: `BUILD SUCCESS` for the first two, `10 passed` or more
-for the third, `All files pass linting`, and `3 passed` for the last. The Playwright test opens and closes a browser by
-itself.
+**You should see.** The Maven targets run quietly (`-q`): success is no `ERROR` line and the prompt coming back;
+`make unit-test` runs 23 backend tests. `make test` also runs the frontend and ends with `Test Files 8 passed` and
+`Tests 21 passed`. `make lint` prints `All files pass linting`, and `make e2e` ends with `7 passed`. The Playwright
+tests open and close a browser by themselves.
 
 **If not.** A red `FAIL` or `ERROR` with a test name: copy the whole output and search for it in the project's
 issues on GitHub, or open a new issue with the "Bug" template. Your setup is still fine if L10 worked.
@@ -726,6 +736,9 @@ hour if this one disappears.
 | `port is already allocated` / `BUSY` | L7, L8 | another program uses that door; `lsof -i :<port>` shows which |
 | `Cannot connect to the Docker daemon` | L8+ | open Docker Desktop and wait for the whale to be still |
 | `Connection refused` on 8080 | L9 | the backend is not running or not finished starting |
+| `required a single bean, but 2 were found` / `Ambiguous @ExceptionHandler` | L9 | copy older than `c91e9cf`; `git pull` |
+| `ConnectException` from `OtlpHttpMetricsSender` | L9 | harmless without the L12 observability stack |
+| `libnspr4.so: cannot open shared object file` | L11 | `cd frontend && sudo npx playwright install-deps chromium` |
 | login page comes back after logging in | L10 | use exactly `http://localhost:4200` |
 | `Out of host capacity` | P5 | Oracle has no free ARM machine now; change `availability_domain_index`, retry later |
 | `NotAuthenticated` | P5 | the `~/.oci/config` from P4 is wrong |
