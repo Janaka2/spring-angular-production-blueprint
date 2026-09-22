@@ -76,6 +76,7 @@ public class SecurityConfiguration {
         config.setMaxAge(3600L);
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
+        source.registerCorsConfiguration("/actuator/info", config);   // the SPA shows the API version in its footer and About dialog
         return source;
     }
 }

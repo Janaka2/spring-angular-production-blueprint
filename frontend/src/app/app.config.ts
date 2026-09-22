@@ -25,10 +25,13 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withInterceptors([busyInterceptor, authInterceptor, errorInterceptor])),
     provideOAuthClient(),
     // config.json first, then the OIDC discovery document and any login redirect in the URL, then the app
+    // inject() only works before the first await, so every dependency is taken up front
     provideAppInitializer(async () => {
       inject(PreferencesService); // applies the stored theme before the first paint
-      await inject(ConfigService).load();
-      await inject(AuthService).init();
+      const config = inject(ConfigService);
+      const auth = inject(AuthService);
+      await config.load();
+      await auth.init();
     }),
   ],
 };
