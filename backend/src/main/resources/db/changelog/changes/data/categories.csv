@@ -1,8 +1,8 @@
-id,code,name,description,active,sort_order
-0195b7a0-0000-7000-8000-000000000001,COMPUTER,Computer,"Laptops, desktops, tablets",true,10
-0195b7a0-0000-7000-8000-000000000002,PHONE,Phone,Mobile phones and wearables,true,20
-0195b7a0-0000-7000-8000-000000000003,VEHICLE,Vehicle,"Cars, bikes, e-bikes, scooters",true,30
-0195b7a0-0000-7000-8000-000000000004,APPLIANCE,Appliance,"Washing machines, boilers, kitchen equipment",true,40
-0195b7a0-0000-7000-8000-000000000005,EQUIPMENT,Equipment,"Cameras, tools, machinery",true,50
-0195b7a0-0000-7000-8000-000000000006,FURNITURE,Furniture,"Desks, chairs, storage",true,60
-0195b7a0-0000-7000-8000-000000000007,OTHER,Other,Anything that does not fit above,true,999
+id,code,name,description,active,sort_order,created_at,updated_at
+0195b7a0-0000-7000-8000-000000000001,COMPUTER,Computer,"Laptops, desktops, tablets",true,10,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+0195b7a0-0000-7000-8000-000000000002,PHONE,Phone,Mobile phones and wearables,true,20,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+0195b7a0-0000-7000-8000-000000000003,VEHICLE,Vehicle,"Cars, bikes, e-bikes, scooters",true,30,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+0195b7a0-0000-7000-8000-000000000004,APPLIANCE,Appliance,"Washing machines, boilers, kitchen equipment",true,40,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+0195b7a0-0000-7000-8000-000000000005,EQUIPMENT,Equipment,"Cameras, tools, machinery",true,50,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+0195b7a0-0000-7000-8000-000000000006,FURNITURE,Furniture,"Desks, chairs, storage",true,60,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+0195b7a0-0000-7000-8000-000000000007,OTHER,Other,Anything that does not fit above,true,999,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP

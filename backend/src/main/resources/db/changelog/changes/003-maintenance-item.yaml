@@ -16,7 +16,7 @@ databaseChangeLog:
               - column: { name: status,           type: varchar(20),    constraints: { nullable: false } }
               - column: { name: completed_date,   type: date }
               - column: { name: cost,             type: "numeric(14,2)" }
-              - column: { name: currency,         type: char(3) }
+              - column: { name: currency,         type: varchar(3) }
               - column: { name: service_provider, type: varchar(200) }
               - column: { name: notes,            type: varchar(2000) }
               - column: { name: version,          type: bigint,         defaultValueNumeric: 0, constraints: { nullable: false } }

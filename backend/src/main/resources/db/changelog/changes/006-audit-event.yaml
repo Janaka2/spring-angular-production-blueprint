@@ -13,7 +13,7 @@ databaseChangeLog:
               - column: { name: operation,      type: varchar(20),   constraints: { nullable: false } }
               - column: { name: entity_type,    type: varchar(40),   constraints: { nullable: false } }
               - column: { name: entity_id,      type: uuid,          constraints: { nullable: false } }
-              - column: { name: changed_fields, type: ${json.type} }
+              - column: { name: changed_fields, type: "${json.type}" }
               - column: { name: request_id,     type: varchar(64) }
               - column: { name: trace_id,       type: varchar(32) }
         - createIndex:

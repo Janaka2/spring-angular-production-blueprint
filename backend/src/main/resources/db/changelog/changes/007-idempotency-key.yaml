@@ -9,7 +9,7 @@ databaseChangeLog:
             columns:
               - column: { name: owner,        type: varchar(120), constraints: { nullable: false } }
               - column: { name: key,          type: varchar(64),  constraints: { nullable: false } }
-              - column: { name: request_hash, type: char(64),     constraints: { nullable: false } }
+              - column: { name: request_hash, type: varchar(64),     constraints: { nullable: false } }
               - column: { name: entity_id,    type: uuid,         constraints: { nullable: false } }
               - column: { name: created_at,   type: timestamp with time zone, constraints: { nullable: false } }
         - addPrimaryKey: { tableName: idempotency_key, columnNames: "owner, key", constraintName: pk_idempotency_key }

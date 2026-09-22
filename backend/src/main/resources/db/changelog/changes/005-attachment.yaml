@@ -13,7 +13,7 @@ databaseChangeLog:
               - column: { name: content_type, type: varchar(100),  constraints: { nullable: false } }
               - column: { name: size_bytes,   type: bigint,        constraints: { nullable: false } }
               - column: { name: storage_key,  type: varchar(300),  constraints: { nullable: false, unique: true, uniqueConstraintName: uq_attachment_storage_key } }
-              - column: { name: sha256,       type: char(64),      constraints: { nullable: false } }
+              - column: { name: sha256,       type: varchar(64),      constraints: { nullable: false } }
               - column: { name: uploaded_by,  type: varchar(120),  constraints: { nullable: false } }
               - column: { name: uploaded_at,  type: timestamp with time zone, constraints: { nullable: false } }
         - createIndex:

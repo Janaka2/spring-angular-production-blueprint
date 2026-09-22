@@ -18,7 +18,7 @@ databaseChangeLog:
               - column: { name: model,          type: varchar(120) }
               - column: { name: purchase_date,  type: date }
               - column: { name: purchase_price, type: "numeric(14,2)" }
-              - column: { name: currency,       type: char(3) }
+              - column: { name: currency,       type: varchar(3) }
               - column: { name: warranty_until, type: date }
               - column: { name: location,       type: varchar(200) }
               - column: { name: owner,          type: varchar(120),    constraints: { nullable: false } }

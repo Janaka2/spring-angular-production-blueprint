@@ -14,7 +14,7 @@ databaseChangeLog:
               - column: { name: performed_by,        type: varchar(200) }
               - column: { name: summary,             type: varchar(500),  constraints: { nullable: false } }
               - column: { name: cost,                type: "numeric(14,2)" }
-              - column: { name: currency,            type: char(3) }
+              - column: { name: currency,            type: varchar(3) }
               - column: { name: notes,               type: varchar(2000) }
               - column: { name: created_at,          type: timestamp with time zone, constraints: { nullable: false } }
               - column: { name: created_by,          type: varchar(120),  constraints: { nullable: false } }
