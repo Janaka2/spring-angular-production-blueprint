@@ -15,6 +15,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -65,6 +66,19 @@ public class ProblemDetailsHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ProblemDetail optimisticLock(OptimisticLockingFailureException e) {
         return problem(HttpStatus.CONFLICT, "stale-version", "the record was changed concurrently; reload and apply your change again");
+    }
+
+    /** A unique constraint rejected the write, e.g. an asset tag the owner already uses (uq_asset_owner_tag). */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail integrity(DataIntegrityViolationException e) {
+        var cause = String.valueOf(e.getMostSpecificCause().getMessage());
+        if (cause.contains("uq_asset_owner_tag")) {
+            var pd = problem(HttpStatus.CONFLICT, "duplicate", "you already have an asset with this asset tag");
+            pd.setProperty("errors", List.of(Map.of("field", "assetTag", "message", "already used by another of your assets")));
+            return pd;
+        }
+        log.atWarn().addKeyValue("event", "INTEGRITY_VIOLATION").setCause(e).log("write rejected by a database constraint");
+        return problem(HttpStatus.CONFLICT, "duplicate", "the change conflicts with an existing record");
     }
 
     @ExceptionHandler(Preconditions.PreconditionRequiredException.class)

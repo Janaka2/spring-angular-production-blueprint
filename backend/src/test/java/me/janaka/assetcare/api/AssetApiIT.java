@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
 import java.util.UUID;
 import me.janaka.assetcare.support.PostgresIT;
 import org.junit.jupiter.api.Test;
@@ -59,6 +60,10 @@ class AssetApiIT extends PostgresIT {
         mvc.perform(post("/api/v1/assets").with(alice()).contentType(MediaType.APPLICATION_JSON)
                         .header("Idempotency-Key", "create-laptop-0001").content(asset("MacBook Pro", "LAPTOP-1")))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(id));
+        // a different asset with the same tag is a 409 Problem Details, not a 500
+        mvc.perform(post("/api/v1/assets").with(alice()).contentType(MediaType.APPLICATION_JSON).content(asset("Other laptop", "LAPTOP-1")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.type").value("https://assetcare.janaka.me/problems/duplicate"))
+                .andExpect(jsonPath("$.errors[0].field").value("assetTag"));
 
         // search
         mvc.perform(get("/api/v1/assets").with(alice()).param("search", "macbook"))
@@ -91,16 +96,18 @@ class AssetApiIT extends PostgresIT {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors", hasSize(2)));
 
         // maintenance: plan, list with urgency, complete with a service record, recurring successor appears
+        // dates are relative to today: a fixed due date drifts into the 14-day DUE window as the calendar moves
+        LocalDate due = LocalDate.now().plusDays(90);
         MvcResult item = mvc.perform(post("/api/v1/assets/" + id + "/maintenance").with(alice()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"INSPECTION\",\"description\":\"Battery check\",\"dueDate\":\"2026-10-01\",\"recurrence\":\"P1Y\"}"))
+                        .content("{\"type\":\"INSPECTION\",\"description\":\"Battery check\",\"dueDate\":\"" + due + "\",\"recurrence\":\"P1Y\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.urgency").value("PLANNED")).andReturn();
         String itemId = json(item, "id");
         mvc.perform(post("/api/v1/maintenance/" + itemId + "/complete").with(alice()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"performedOn\":\"2026-09-16\",\"summary\":\"Battery at 91%\",\"cost\":0,\"currency\":\"CHF\"}"))
+                        .content("{\"performedOn\":\"" + LocalDate.now() + "\",\"summary\":\"Battery at 91%\",\"cost\":0,\"currency\":\"CHF\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.maintenanceItemId").value(itemId));
         mvc.perform(get("/api/v1/assets/" + id + "/maintenance").with(alice()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[?(@.status=='DONE')]").exists()).andExpect(jsonPath("$[?(@.dueDate=='2027-10-01')]").exists());
+                .andExpect(jsonPath("$[?(@.status=='DONE')]").exists()).andExpect(jsonPath("$[?(@.dueDate=='" + due.plusYears(1) + "')]").exists());
         mvc.perform(get("/api/v1/assets/" + id + "/service-records").with(audrey())).andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(1)));
 
         // attachment: upload to filesystem storage, list, download, wrong type rejected

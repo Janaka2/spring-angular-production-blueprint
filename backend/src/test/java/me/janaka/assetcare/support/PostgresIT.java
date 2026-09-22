@@ -16,6 +16,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 @TestPropertySource(properties = {
         "spring.liquibase.contexts=test",
+        "assetcare.demo-data=false",          // tests create their own data; the demo LAPTOP-1 would collide
         "assetcare.storage.type=filesystem",
         "assetcare.storage.filesystem.root=${java.io.tmpdir}/assetcare-it-attachments",
         "management.tracing.enabled=false",
