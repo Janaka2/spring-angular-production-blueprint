@@ -85,11 +85,6 @@ public class ProblemDetailsHandler extends ResponseEntityExceptionHandler {
         return pd;
     }
 
-    @ExceptionHandler(MaxUploadSizeExceededException.class)
-    ProblemDetail tooLarge(MaxUploadSizeExceededException e) {
-        return problem(HttpStatus.PAYLOAD_TOO_LARGE, "payload-too-large", "the upload exceeds the size limit");
-    }
-
     @ExceptionHandler(Exception.class)
     ProblemDetail unexpected(Exception e) {
         var pd = problem(HttpStatus.INTERNAL_SERVER_ERROR, "internal", "an unexpected error occurred; quote the requestId when reporting it");
@@ -105,6 +100,14 @@ public class ProblemDetailsHandler extends ResponseEntityExceptionHandler {
                 .map(fe -> Map.of("field", fe.getField(), "message", message(fe))).toList();
         pd.setProperty("errors", errors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(pd);
+    }
+
+    // the base class already maps this exception, so a separate @ExceptionHandler would be ambiguous
+    @Override
+    protected @Nullable ResponseEntity<Object> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex, HttpHeaders headers,
+                                                                                    HttpStatusCode status, WebRequest request) {
+        var pd = problem(HttpStatus.PAYLOAD_TOO_LARGE, "payload-too-large", "the upload exceeds the size limit");
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(pd);
     }
 
     @Override

@@ -10,7 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 interface ServiceRecordJpaRepository extends JpaRepository<ServiceRecord, UUID>, ServiceRecordRepository {
 
     @Override
-    @Query("select r from ServiceRecord r where r.asset.id = :assetId order by r.performedOn desc, r.createdAt desc")
+    // the linked item is fetched: responses are mapped after the transaction ends (open-in-view is off)
+    @Query("select r from ServiceRecord r left join fetch r.maintenanceItem where r.asset.id = :assetId order by r.performedOn desc, r.createdAt desc")
     List<ServiceRecord> findByAsset(UUID assetId);
 
     @Override

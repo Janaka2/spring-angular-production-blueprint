@@ -30,10 +30,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfiguration {
 
     @Bean
-    SecurityFilterChain api(HttpSecurity http, CorsConfigurationSource cors) throws Exception {
+    SecurityFilterChain api(HttpSecurity http) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())                     // bearer tokens only; nothing a browser sends automatically
-                .cors(c -> c.configurationSource(cors))
+                .cors(Customizer.withDefaults())                   // resolves the bean named corsConfigurationSource below
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(h -> h
                         .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
