@@ -3,7 +3,7 @@
 # Runtime configuration (API URL, issuer, client id) is rendered into /config.json from environment variables at start,
 # so the same image runs in every environment.
 
-FROM node:26.8-alpine3.24 AS build
+FROM node:26.9-alpine3.24 AS build
 WORKDIR /workspace
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
