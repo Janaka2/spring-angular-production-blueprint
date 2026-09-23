@@ -11,7 +11,7 @@ verifiably works, a logical commit, and a summary of what now works. Nothing is 
 | 4 | Main course | Angular SPA: login, dashboard, list/search/filter/paginate, create/view/update/archive, concurrency conflicts, maintenance, history, attachments, states, accessibility | frontend unit tests; Playwright end-to-end flow against the real stack |
 | 5 | Side dishes | Testcontainers, ArchUnit, API tests, security tests, static analysis, dependency and container scanning, SBOM, k6, resilience, backup/restore, secure configuration | CI pipeline green; scans documented |
 | 6 | Dessert | Prometheus, Grafana dashboards in Git, Tempo tracing, Loki logs, OTel collector, correlation ids, alerts | stack runs locally with `docker compose`; dashboards show real traffic |
-| 7 | Coffee and closing | Docker images (multi-arch, non-root), Helm chart, K3s on OCI, TLS, DNS, backups, GitHub Actions, rollback, runbook, scaling, disaster recovery | `helm lint`/`template`, image builds in CI, deployment documented with what was and was not executed |
+| 7 | Coffee and closing | Docker images (multi-arch, non-root), Helm chart, K3s on one Hetzner CX33, TLS, DNS, backups, GitHub Actions, rollback, runbook, scaling, disaster recovery | `helm lint`/`template`, image builds in CI, deployment documented with what was and was not executed |
 
 ## Checklist
 
@@ -26,7 +26,7 @@ verifiably works, a logical commit, and a summary of what now works. Nothing is 
 [✓] Course 4: Angular application (Playwright flow written; executed in CI)
 [✓] Course 5: quality, security and reliability (scans and SBOM run in CI)
 [✓] Course 6: observability stack
-[✓] Course 7: deployment, CI/CD, operations (chart linted and rendered; images built in CI; OCI install documented, not executed)
+[✓] Course 7: deployment, CI/CD, operations (chart linted and rendered; images built in CI; production trial on a Hetzner CX33, ADR-012)
 [ ] Academy article
 ```
 
@@ -36,22 +36,23 @@ verifiably works, a logical commit, and a summary of what now works. Nothing is 
    until a requirement exists; adding it is a migration plus a filter in the application layer).
 2. Keycloak is the identity provider for all environments. Local development uses a realm import with three demo users
    and clearly labelled development passwords. No other authentication mechanism exists.
-3. The reference deployment is a single OCI Always Free ARM VM (VM.Standard.A1.Flex, 4 OCPU, 24 GB) running K3s. It is
-   free while capacity exists; OCI may not have capacity in a given region at a given moment.
+3. The reference deployment is one Hetzner Cloud CX33 (4 vCPU, 8 GB) running K3s (ADR-012). It costs a few euros a
+   month; an earlier OCI Always Free VM was dropped because free capacity could not be obtained on demand.
 4. Attachments are limited to 10 MB per file and to a list of document and image content types.
 5. Currency is stored per amount; no conversion is performed.
 6. English is the only UI language in the reference; the SPA is structured so a second locale is a translation file.
 
-## What the free tier cannot do, and the lighter configuration
+## What one small server cannot do, and the lighter configuration
 
-The full observability stack (collector, Prometheus, Loki, Tempo, Grafana) plus Keycloak, PostgreSQL, MinIO, the API and
-the frontend fits in 24 GB with careful requests and limits, but leaves little room. Two Helm profiles therefore exist:
+The core chart (Keycloak, PostgreSQL, MinIO, the API and the frontend) fits in the CX33's 8 GB with headroom; the full
+observability stack (collector, Prometheus, Loki, Tempo, Grafana) on the same node does not, and needs a CX43 (16 GB) or
+a second server (ADR-012). Two Helm profiles therefore exist:
 
 - **core**: frontend, API, PostgreSQL, Keycloak, MinIO. Roughly 3 GB of requests.
 - **observability**: adds the five observability components with retention set to days, not weeks.
 
-Anything that costs money on OCI is called out where it appears: Object Storage beyond the free 20 GB, a public load
-balancer beyond the free 10 Mbps flexible one, block volumes beyond 200 GB, and outbound data beyond 10 TB a month.
+The server, its IPv4 address and server backups cost money every month; `ENVIRONMENT-SETUP.md` P4 points at Hetzner's
+price page rather than quoting numbers that go stale.
 
 ## Definition of Done
 

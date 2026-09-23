@@ -22,4 +22,4 @@ Results are only meaningful with the hardware and conditions stated. Record them
 | not yet executed | | | | | | | | |
 
 No result is published from a run that was not made. A laptop run with the compose stack is a functional check of the
-scripts, not a capacity statement; the OCI VM run is the reference number for the free deployment.
+scripts, not a capacity statement; the run against the CX33 is the reference number for the production trial.

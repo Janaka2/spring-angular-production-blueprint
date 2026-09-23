@@ -9,7 +9,11 @@ a minor one, a fix a patch.
 ### Changed
 - The production trial moves from an OCI Always Free ARM VM to one Hetzner Cloud CX33 (ADR-012, superseding ADR-004):
   `infra/hetzner` Terraform with a cloud firewall, cloud-init `ubuntu` user and server backups; `ENVIRONMENT-SETUP.md`
-  P4 to P7 rewritten; CI validates both Terraform configurations.
+  P4 to P7 rewritten; CI validates the Terraform configuration.
+
+### Removed
+- The OCI Always Free deployment path: `docs/operations/OCI-FREE-TIER.md` and `infra/oci`, with their CI validation,
+  Dependabot entry and documentation links (ADR-012 amendment). `v1.0.0` still contains them.
 
 ### Fixed
 - `deploy/k3s/install.sh` inserted iptables rules at position 6, which fails on images whose INPUT chain is shorter

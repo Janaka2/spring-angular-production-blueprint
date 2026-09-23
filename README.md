@@ -47,7 +47,7 @@ has been executed.
 | 4 Main course: Angular application | done (Playwright passes locally against the production image; runs in `ci`) |
 | 5 Side dishes: quality, security, reliability | done (SBOM, restore drill, Trivy and gitleaks pass locally; CodeQL runs only on GitHub) |
 | 6 Dessert: observability | done (stack starts with `make observability`) |
-| 7 Coffee: deployment, CI/CD, operations | v1.0.0 released: signed multi-arch images on GHCR, chart on the GitHub release; OCI install documented, NOT EXECUTED |
+| 7 Coffee: deployment, CI/CD, operations | v1.0.0 released: signed multi-arch images on GHCR, chart on the GitHub release; production trial on one Hetzner CX33 (ADR-012) |
 | Academy article | done: [janaka.me/academy/production-ready-spring-angular](https://janaka.me/academy/production-ready-spring-angular/) (source: `docs/academy/ARTICLE.md`) |
 
 ## Look and feel
@@ -100,8 +100,8 @@ make e2e                # Playwright against the running stack
 ## How do I deploy it?
 
 See `docs/ENVIRONMENT-SETUP.md` steps P1 to P14 (K3s on one Hetzner Cloud CX33 created by `infra/hetzner`, TLS from
-Let's Encrypt; ADR-012) and `docs/operations/DEPLOYMENT.md` (Helm on any Kubernetes). The earlier OCI Always Free path
-stays documented in `docs/operations/OCI-FREE-TIER.md`. `make helm-lint` and `make helm-template` validate the chart.
+Let's Encrypt; ADR-012) and `docs/operations/DEPLOYMENT.md` (Helm on any Kubernetes). `make helm-lint` and
+`make helm-template` validate the chart.
 
 ## How do I monitor it?
 
@@ -123,7 +123,7 @@ Read `docs/architecture/ARCHITECTURE.md` for the dependency direction and where 
 - `docs/HOW-TO-MODIFY.md` — the playbook for common changes; the same playbook as AI skills in `.claude/skills/`
 - `docs/architecture/` — architecture, domain model, database model (ER diagram, every column and index), UI wireframes (every screen, state and role), Oracle migration
 - `docs/adr/` — architecture decision records
-- `docs/operations/` — deployment, OCI free tier, runbook, health monitoring, backup and restore, scaling, observability, post-mortem template
+- `docs/operations/` — deployment, runbook, health monitoring, backup and restore, scaling, observability, post-mortem template
 - `docs/security/` — security principles, threat model
 - `docs/PRODUCTION-GAPS.md` — what an enterprise replaces
 - `docs/academy/` — the seven-course roadmap and the Academy article
@@ -150,7 +150,6 @@ API image with production settings                  PASS   prod Liquibase contex
 Helm lint + template, core values                   PASS   every third-party image checked pullable (arm64 incl.)
 Trivy fs (dependencies, config) and both images     PASS   after the Tomcat 11.0.26 override; no fixable critical CVE
 gitleaks, full history                               PASS   one reviewed false positive allowlisted in .gitleaks.toml
-Terraform fmt + validate (infra/oci)                 PASS   after rewriting variables.tf, which was invalid
 Terraform fmt + validate (infra/hetzner)             PASS   2026-09-23, Terraform 1.16.3, hcloud 1.69.0; cloud-init renders
 actionlint (with shellcheck) on the three workflows  PASS
 Production frontend image, e2e + console, real CSP   PASS   7 of 7; zero CSP violations after two fixes (headers, critical CSS)
@@ -177,11 +176,9 @@ Trivy (fs, images), CodeQL, dependency review,      NOT EXECUTED locally; workfl
   gitleaks
 k6 load test                                        NOT EXECUTED; scripts and thresholds in performance/
 Observability stack with real traffic               NOT EXECUTED; docker-compose.observability.yml validated in CI
-Terraform validate (infra/oci)                      NOT EXECUTED locally; job helm
 
 Not executed anywhere yet:
 Hetzner CX33 + K3s installation, DNS, TLS issuance  NOT EXECUTED yet; ENVIRONMENT-SETUP.md P4-P14, a check per step
-OCI VM + K3s installation (superseded, ADR-012)      NOT EXECUTED; attempts did not produce a working server
 Smoke test against a deployed instance              NOT EXECUTED; scripts/smoke-test.sh runs in the e2e job against localhost
 ```
 

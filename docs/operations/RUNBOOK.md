@@ -73,7 +73,7 @@ disallowed content types are 4xx by design (`assetcare.attachments.*`).
 ### Certificate not issued
 
 `kubectl -n assetcare describe certificaterequest`, then `describe order` and `describe challenge`. Usual causes: DNS
-does not resolve to the VM yet, port 80 blocked by the Hetzner cloud firewall `assetcare-web` (or on OCI the
+does not resolve to the VM yet, port 80 blocked by the Hetzner cloud firewall `assetcare-web` (or by the host's
 security list or iptables), rate limit (use staging).
 
 ## Procedures

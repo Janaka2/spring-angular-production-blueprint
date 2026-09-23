@@ -181,12 +181,9 @@ jobs:
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
       - name: Terraform format and validate (no cloud access needed)
         run: |
-          for dir in infra/hetzner infra/oci; do
-            echo "== $dir"
-            terraform -chdir="$dir" fmt -check -diff
-            terraform -chdir="$dir" init -backend=false -input=false
-            terraform -chdir="$dir" validate
-          done
+          terraform -chdir=infra/hetzner fmt -check -diff
+          terraform -chdir=infra/hetzner init -backend=false -input=false
+          terraform -chdir=infra/hetzner validate
 
   images:
     name: images (build, config render, Trivy)
