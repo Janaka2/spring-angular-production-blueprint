@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>me.janaka.assetcare</groupId>
 	<artifactId>assetcare-api</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<name>assetcare-api</name>
 	<description>AssetCare API - asset maintenance manager (Spring Boot reference backend)</description>
 	<url/>
