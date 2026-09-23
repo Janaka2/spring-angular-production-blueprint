@@ -12,7 +12,8 @@ async function loginThroughKeycloak(page: Page, user: string, password: string):
   await page.goto('/');
   await page.waitForURL(/realms\/assetcare\/protocol\/openid-connect\/auth/);
   await page.getByLabel(/username|email/i).fill(user);
-  await page.getByLabel(/^password$/i).fill(password);
+  // by role: Keycloak 26 wraps the field with a "Show password" toggle, so getByLabel no longer resolves it
+  await page.getByRole('textbox', { name: /^password$/i }).fill(password);
   await page.getByRole('button', { name: /sign in/i }).click();
   await page.waitForURL(/\/dashboard$/);
 }
@@ -37,12 +38,12 @@ test.describe.serial('AssetCare workflow', () => {
     await expect(page.getByRole('heading', { name })).toBeVisible();
 
     // search
-    await page.getByRole('link', { name: 'Assets' }).click();
+    await page.getByRole('link', { name: 'Assets', exact: true }).click();
     await page.getByLabel('Search').fill(suffix);
-    await expect(page.getByRole('row', { name: new RegExp(name) })).toBeVisible();
+    await expect(page.getByRole('link', { name: `Open ${name}` })).toBeVisible();
 
     // open and update
-    await page.getByRole('row', { name: new RegExp(name) }).click();
+    await page.getByRole('link', { name: `Open ${name}` }).click();
     await page.getByRole('link', { name: /edit/i }).click();
     await page.getByLabel('Location').fill('Zug office');
     await page.getByRole('button', { name: 'Save' }).click();
@@ -64,7 +65,7 @@ test.describe.serial('AssetCare workflow', () => {
     await expect(page.getByText(/due Dec 1, 2027/)).toBeVisible();
 
     // history shows the changes with request ids
-    await page.getByRole('tab', { name: 'History' }).click();
+    await page.getByRole('tab', { name: 'History', exact: true }).click();
     await expect(page.getByText('CREATE').first()).toBeVisible();
     await expect(page.getByText('UPDATE').first()).toBeVisible();
     await expect(page.getByText(/request /).first()).toBeVisible();
@@ -85,7 +86,10 @@ test.describe.serial('AssetCare workflow', () => {
     await page.getByLabel('Search').fill('zzz-no-such-asset');
     await expect(page).toHaveURL(/q=zzz-no-such-asset/);
     await expect(page.getByText('No assets match these filters.')).toBeVisible();
-    await page.getByRole('button', { name: /clear filters/i }).click();
+    await page
+      .getByRole('button', { name: /clear filters/i })
+      .first()
+      .click(); // toolbar and empty state both offer it
     await expect(page).not.toHaveURL(/q=/);
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: /export/i }).click();
@@ -98,8 +102,11 @@ test.describe.serial('AssetCare workflow', () => {
     await page.goto('/assets/new');
     await page.getByLabel('Name').fill(`Draft ${suffix}`);
     page.once('dialog', (d) => void d.dismiss()); // "leave and discard?" → stay
-    await page.getByRole('link', { name: 'Assets' }).click();
+    await page.getByRole('link', { name: 'Assets', exact: true }).click();
     await expect(page).toHaveURL(/\/assets\/new$/);
+    // the draft autosaves 500 ms after the last change; then reload and answer the browser's "leave site?" with leave
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('assetcare.draft.new'))).toContain(`Draft ${suffix}`);
+    page.once('dialog', (d) => void d.accept());
     await page.reload();
     await expect(page.getByText(/unsaved draft/i)).toBeVisible();
     await page.getByRole('button', { name: 'Restore' }).click();
@@ -109,7 +116,7 @@ test.describe.serial('AssetCare workflow', () => {
 
   test('an admin manages categories; a user does not see the page', async ({ page }) => {
     await loginThroughKeycloak(page, 'admin', 'admin-dev-password');
-    await page.getByRole('link', { name: 'Categories' }).click();
+    await page.getByRole('link', { name: 'Categories', exact: true }).click();
     await page.getByRole('button', { name: /new category/i }).click();
     await page.getByLabel('Code').fill(`E2E_${suffix.toUpperCase()}`);
     await page.getByLabel('Name').fill(`E2E category ${suffix}`);
@@ -125,7 +132,7 @@ test.describe.serial('AssetCare workflow', () => {
   test('settings change the theme and rows per page', async ({ page }) => {
     await loginThroughKeycloak(page, 'alice', 'alice-dev-password');
     await page.goto('/settings');
-    await page.getByRole('button', { name: 'Dark' }).click();
+    await page.getByRole('radio', { name: 'Dark' }).click(); // a single-choice toggle group is a radio group
     await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
     await page.goto('/assets/nope-not-a-real-id-or-page/extra');
     await expect(page.getByRole('heading', { name: /page not found/i })).toBeVisible();
@@ -133,12 +140,15 @@ test.describe.serial('AssetCare workflow', () => {
 
   test('an auditor can read everything and change nothing', async ({ page }) => {
     await loginThroughKeycloak(page, 'audrey', 'audrey-dev-password');
-    await page.getByRole('link', { name: 'Assets' }).click();
+    await page.getByRole('link', { name: 'Assets', exact: true }).click();
     await expect(page.getByRole('link', { name: /new asset/i })).toHaveCount(0);
-    await page.getByRole('row').nth(1).click();
+    await page
+      .getByRole('link', { name: /^Open / })
+      .first()
+      .click(); // data rows are links named "Open <asset>"
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(page.getByRole('link', { name: /edit/i })).toHaveCount(0);
-    await page.getByRole('tab', { name: 'History' }).click();
+    await page.getByRole('tab', { name: 'History', exact: true }).click();
   });
 
   test('two sessions editing the same asset: the second save sees a conflict', async ({ browser }) => {
@@ -157,10 +167,14 @@ test.describe.serial('AssetCare workflow', () => {
     await pa.getByLabel('Category').click();
     await pa.getByRole('option', { name: 'Phone' }).click();
     await pa.getByRole('button', { name: 'Save' }).click();
+    await pa.waitForURL(/\/assets\/[0-9a-f-]{36}$/); // the saved asset's own page, not /assets/new
     const url = pa.url();
 
     await pa.goto(url + '/edit');
     await pb.goto(url + '/edit');
+    // both forms must hold version 0 before A saves; goto returns before the form has fetched the asset
+    await expect(pa.getByLabel('Name')).toHaveValue(`Conflict ${suffix}`);
+    await expect(pb.getByLabel('Name')).toHaveValue(`Conflict ${suffix}`);
     await pa.getByLabel('Location').fill('Desk A');
     await pa.getByRole('button', { name: 'Save' }).click();
     await expect(pa.getByText('Desk A')).toBeVisible();
