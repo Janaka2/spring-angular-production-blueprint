@@ -43,11 +43,11 @@ has been executed.
 |---|---|
 | 1 Mise en place: architecture, domain, standards, environment | done |
 | 2 Starter: PostgreSQL schema and migrations | done |
-| 3 Soup: Spring Boot service | done (integration tests run in CI) |
-| 4 Main course: Angular application | done (end-to-end flow runs in CI) |
-| 5 Side dishes: quality, security, reliability | done (scans, SBOM and the restore drill run in CI) |
+| 3 Soup: Spring Boot service | done (integration tests pass locally, 2026-09-23; CI workflows not in the repository yet) |
+| 4 Main course: Angular application | done (Playwright end-to-end suite passes locally, 2026-09-23) |
+| 5 Side dishes: quality, security, reliability | done (SBOM and the restore drill pass locally; security scans NOT EXECUTED, no workflows yet) |
 | 6 Dessert: observability | done (stack starts with `make observability`) |
-| 7 Coffee: deployment, CI/CD, operations | done (chart linted and rendered; images built in CI; OCI install documented, NOT EXECUTED) |
+| 7 Coffee: deployment, CI/CD, operations | chart linted and rendered, images build locally; CI/CD workflows missing; OCI install documented, NOT EXECUTED |
 | Academy article | done: [janaka.me/academy/production-ready-spring-angular](https://janaka.me/academy/production-ready-spring-angular/) (source: `docs/academy/ARTICLE.md`) |
 
 ## How do I run it?
@@ -121,6 +121,21 @@ Read `docs/architecture/ARCHITECTURE.md` for the dependency direction and where 
 Updated at the end of each course. Only executed checks are marked PASS.
 
 ```text
+Executed on 2026-09-23 (WSL2 Ubuntu, Docker 29.8, Java 25.0.2, Node 24.21), main after the Dependabot merges:
+Backend unit + architecture tests                   PASS   23 tests, including 4 ArchUnit rules
+Integration tests (Testcontainers, PostgreSQL 18.6) PASS   4 tests; changelog applies, Hibernate validate accepts it
+Frontend lint + format, unit tests, production build PASS  21 tests; Angular 22.1.7, TypeScript 6.0.3
+E2E (Playwright, real Keycloak + API + SPA)         PASS   7 of 7, two consecutive runs
+API smoke over all four demo roles                  PASS   51 checks: CRUD, If-Match/409, idempotency, roles,
+                                                           maintenance, attachments via MinIO, archive/restore
+Browser console on every screen, three roles        PASS   no console or page errors
+Backup → damage → restore drill (make backup/restore) PASS  checksum ok, row counts of six tables identical
+Docker builds, local platform (amd64)               PASS   api 652 MB as uid 10001; frontend 84 MB as uid 101
+API image with production settings                  PASS   prod Liquibase context, no demo data, S3 storage,
+                                                           HSTS behind TLS, 409 on duplicate tag
+Helm lint + template, core values                   PASS   every third-party image checked pullable (arm64 incl.)
+Docker builds arm64, Trivy, CodeQL, gitleaks        NOT EXECUTED; no workflows exist yet (see below)
+
 Executed by the author (2026-09-16, macOS, no Docker daemon available):
 Backend compile (Java 25, Spring Boot 4.1.1)        PASS   ./mvnw compile
 Backend unit + architecture tests                   PASS   23 tests: domain, use cases, health, ArchUnit
@@ -133,7 +148,7 @@ Helm template, enterprise values (external DB/IdP/  PASS   10 objects rendered, 
   object storage, existingSecret, HPA, ServiceMonitor)
 Version matrix                                      PASS   every version checked against its official source
 
-Delegated to GitHub Actions (.github/workflows on branch ci/pipeline; needs the workflow scope to be pushed):
+Delegated to GitHub Actions (the workflows are not in the repository yet: no ci/pipeline branch exists, locally or on GitHub):
 Integration tests (Testcontainers, PostgreSQL 18)   NOT EXECUTED locally; job backend
 Backup → wipe → restore drill                       NOT EXECUTED locally; job backup-restore
 E2E (Playwright, real Keycloak + API + SPA)         NOT EXECUTED locally; job e2e
