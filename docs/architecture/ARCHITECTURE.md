@@ -27,7 +27,7 @@ flowchart TB
     subgraph Browser
         SPA[Angular SPA<br/>static files served by nginx]
     end
-    subgraph Kubernetes["Kubernetes (K3s on one OCI ARM VM for the reference deployment)"]
+    subgraph Kubernetes["Kubernetes (K3s on one Hetzner CX33 for the reference deployment)"]
         ING[Traefik ingress + cert-manager TLS]
         FE[frontend container<br/>nginx, non-root]
         API[assetcare-api container<br/>JVM 25, non-root]
@@ -57,7 +57,8 @@ flowchart TB
 ```
 
 Two Helm profiles exist because the free VM is small: **core** (frontend, API, PostgreSQL, Keycloak, MinIO) and
-**observability** (adds the collector, Prometheus, Loki, Tempo, Grafana). See `docs/operations/OCI-FREE-TIER.md`.
+**observability** (adds the collector, Prometheus, Loki, Tempo, Grafana). See `docs/ENVIRONMENT-SETUP.md` P4 to P14
+and ADR-012; the observability profile needs more than the CX33's 8 GB.
 
 ## 3. Backend: clean architecture and dependency direction
 
@@ -121,7 +122,7 @@ analytical queries diverge from transactional ones. None of them exists today be
 ```mermaid
 flowchart TB
     DNS[assetcare.example.com<br/>DNS A record] --> VM
-    subgraph VM["OCI Always Free ARM VM (4 OCPU, 24 GB)"]
+    subgraph VM["Hetzner Cloud CX33 (4 vCPU, 8 GB, 80 GB), cloud firewall 22/80/443"]
         subgraph K3s
             T[Traefik ingress<br/>TLS from cert-manager + Let's Encrypt]
             T --> FE[frontend]
@@ -131,7 +132,7 @@ flowchart TB
             API --> MINIO[(MinIO PVC)]
             OBS[[observability profile]]
         end
-        CRON[backup CronJob: pg_dump → compressed → retained → optional OCI Object Storage]
+        CRON[backup CronJob: pg_dump → compressed → retained → optional S3 bucket; nightly Hetzner server backup]
         CRON --> PG
     end
 ```

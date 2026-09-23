@@ -56,13 +56,13 @@ Do one small change end to end before you need to do a real one under pressure.
 | 3.5 | Release it as `v1.0.1` and deploy it (phase 4 or the local Helm dry run) | new version visible in `/actuator/info` | open |
 | 3.6 | Practice rollback: `helm rollback` to `v1.0.0` and back | both versions serve; smoke test passes each time | open |
 
-## Phase 4: production on the free tier
+## Phase 4: production trial on a Hetzner CX33 (ADR-012)
 
 | # | Activity | Proof | Status |
 |---|---|---|---|
-| 4.1 | Tools, Oracle account, API key (P1, P4) | `terraform validate` ok; `~/.oci/config` valid | tools done, `terraform validate` passes since 2026-09-23 (it did not before: `variables.tf` was invalid); account open |
-| 4.2 | Create the VM (P5) | `ssh` shows `aarch64`, 4 cores, 23 GB | written (Terraform not executed) |
-| 4.3 | K3s, Helm, cert-manager (P6); firewall (P7) | node Ready; `curl http://<ip>` 404 | written |
+| 4.1 | Tools, Hetzner account, API token (P1, P4) | `terraform validate` ok; the token lists `0` servers | tools done; `infra/hetzner` validates since 2026-09-23; account open. (The OCI attempt before it never produced a working server, ADR-012.) |
+| 4.2 | Create the VM (P5) | `ssh` shows `x86_64`, 4 cores, about 7 GB | written (Terraform not executed) |
+| 4.3 | K3s, Helm, cert-manager (P6); Hetzner cloud firewall (P7) | node Ready; `curl http://<ip>` 404 | written |
 | 4.4 | DNS and issuers (P8, P9) | `dig` returns the IP; issuers Ready | open |
 | 4.5 | Production secrets and realm host (P10, P11) | 7 keys; realm file has the host | open |
 | 4.6 | Install with staging TLS, then prod TLS (P12) | 5 pods Running, certificate Ready, padlock | written (chart linted and rendered **done**; install not executed) |

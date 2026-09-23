@@ -24,7 +24,7 @@ Each line maps to a verification in the report at the end of the README. A line 
 | 17 | run automated tests | 5 | `make test`, `make integration-test`, `make e2e` |
 | 18 | build Docker images | 7 | `docker build` for amd64 and arm64 in CI |
 | 19 | deploy through Helm | 7 | `helm lint`, `helm template`, `helm upgrade --install` |
-| 20 | deploy to the documented OCI/K3s environment | 7 | documented step by step; executed only when an OCI tenancy is available |
+| 20 | deploy to the documented Hetzner/K3s environment (ADR-012) | 7 | `ENVIRONMENT-SETUP.md` P4 to P14 executed, each check seen |
 | 21 | access the application over HTTPS | 7 | cert-manager certificate issued for the configured host |
 | 22 | perform a database backup | 5, 7 | `scripts/backup.sh` produces a timestamped, compressed dump |
 | 23 | restore a database backup | 5, 7 | `scripts/restore.sh` restores into a fresh database and the smoke test passes |

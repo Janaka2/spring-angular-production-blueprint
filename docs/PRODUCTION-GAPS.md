@@ -4,9 +4,9 @@ This repository shows a working application on architecture that can grow into a
 platform. The table is the honest boundary. The left column is real and verified; the right column is what a bank,
 insurer or large company would put in its place, and the application code does not change for any of them.
 
-| Concern | Reference deployment (free) | Enterprise production |
+| Concern | Reference deployment (production trial) | Enterprise production |
 |---|---|---|
-| Compute | One OCI Always Free ARM VM running K3s | Multi-node managed Kubernetes (OKE, EKS, AKS, GKE, OpenShift) across availability zones |
+| Compute | One Hetzner Cloud CX33 (4 vCPU, 8 GB) running K3s (ADR-012); the observability profile needs a CX43 or a second server | Multi-node managed Kubernetes (OKE, EKS, AKS, GKE, OpenShift) across availability zones |
 | Availability | None. One node, one disk. A VM failure is an outage. | Node pools, pod disruption budgets, multi-AZ, tested failover |
 | Database | PostgreSQL 18 in a pod on a persistent volume | Managed HA PostgreSQL with automated failover and point-in-time recovery, or Oracle (see ORACLE-MIGRATION.md) |
 | Identity | Keycloak in a pod, realm imported from Git with development users | Central IdP (enterprise Keycloak cluster, Entra ID, Okta) with MFA, federation and lifecycle management |

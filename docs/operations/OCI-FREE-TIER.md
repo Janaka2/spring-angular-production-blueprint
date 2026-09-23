@@ -1,5 +1,8 @@
 # K3s on an Oracle Cloud Always Free ARM VM
 
+> **Superseded by ADR-012.** The production trial now runs on a Hetzner Cloud CX33 (`ENVIRONMENT-SETUP.md` P4 to
+> P14, `infra/hetzner`). This page is kept as a zero-cost alternative for whoever has A1 capacity.
+
 The reference deployment costs nothing: one `VM.Standard.A1.Flex` instance with 4 OCPU and 24 GB, 100 GB boot volume,
 an ephemeral public IP, and Let's Encrypt certificates. This page walks from an empty tenancy to
 `https://assetcare.example.com` and says, at each step, how to verify it and what it would cost to exceed the free tier.

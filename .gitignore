@@ -12,8 +12,9 @@ performance/results/
 .env
 *.env.local
 deploy/k3s/*.secret.yaml
-infra/oci/*.tfvars
-infra/oci/.terraform/
+infra/*/*.tfvars
+infra/*/terraform.tfstate*
+infra/*/.terraform/
 backups/
 
 # tooling

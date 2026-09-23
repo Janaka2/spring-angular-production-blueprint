@@ -168,7 +168,9 @@ otherwise, it will say exactly what to do. Details: `RUNBOOK.md` → Procedures 
 
 **What is backed up.** The database (every asset, maintenance item, record, user reference, audit history) every
 night at 02:30 into a compressed file on the server. Attachments live in the file storage, which is not part of that
-dump; if you set `backup.s3Bucket` (P14) the dumps are also copied to Oracle's object storage, off the server.
+dump. Off the server: Hetzner takes a nightly snapshot of the whole server and keeps seven (enabled by Terraform in
+P5, visible in the Hetzner console under the server → Backups); if you also set `backup.s3Bucket` the dumps are copied
+to that S3-compatible bucket.
 
 **Check that backups exist.**
 
@@ -215,7 +217,8 @@ have made this shorter") is the one that improves the system.
 [ ] kubectl -n assetcare get certificate shows READY True and an expiry more than 30 days away
 [ ] GitHub → Security tab: no open critical findings; Dependabot pull requests reviewed
 [ ] a newer AssetCare version? read its notes; update (section 4) in a quiet hour
-[ ] Oracle console → Billing: still 0.00 (the free tier never charges unless you add paid resources)
+[ ] Hetzner console → Billing: the month's cost is the CX33, its IPv4 and backups; nothing unexpected listed
+[ ] Hetzner console → the server → Backups: seven recent backups listed
 [ ] diary up to date (section 9)
 ```
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepare a fresh Ubuntu 24.04 ARM VM as a single-node K3s cluster for AssetCare.
+# Prepare a fresh Ubuntu 24.04 VM (x86 or ARM; reference: Hetzner CX33) as a single-node K3s cluster for AssetCare.
 # Run as a sudo-capable user on the VM:  curl -fsSL <raw url of this file> | bash   (or copy it over and run it)
 # It installs: K3s (Traefik bundled), Helm, cert-manager. It does not deploy AssetCare; DEPLOYMENT.md does.
 set -euo pipefail
@@ -24,9 +24,13 @@ kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download
 kubectl -n cert-manager rollout status deploy/cert-manager --timeout=180s
 kubectl -n cert-manager rollout status deploy/cert-manager-webhook --timeout=180s
 
-echo "== OCI firewall: the VM's iptables also has to allow 80/443 (the OCI security list is separate, see OCI-FREE-TIER.md)"
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
-sudo netfilter-persistent save 2>/dev/null || true
+# Some images (OCI's Ubuntu) ship iptables rules that reject everything but SSH. Hetzner's image does not; there the
+# cloud firewall (infra/hetzner) is the only filter. Open 80/443 only where the image rejects them.
+if sudo iptables -S INPUT | grep -q -- '-j REJECT'; then
+  echo "== host firewall rejects inbound traffic: allowing 80/443"
+  sudo iptables -I INPUT 1 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+  sudo iptables -I INPUT 1 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+  sudo netfilter-persistent save 2>/dev/null || true
+fi
 
 echo "== done. Next: edit deploy/k3s/cluster-issuer.yaml (email), kubectl apply it, then helm upgrade --install (DEPLOYMENT.md)."
