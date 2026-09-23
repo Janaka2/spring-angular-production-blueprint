@@ -5,6 +5,7 @@ import { of, throwError } from 'rxjs';
 import { AssetForm } from './asset-form';
 import { AssetsApi } from '../../core/api/assets.api';
 import { Confirm } from '../../shared/confirm-dialog';
+import { AuthService } from '../../core/auth/auth.service';
 
 describe('AssetForm', () => {
   const api = {
@@ -25,6 +26,7 @@ describe('AssetForm', () => {
         ]),
         { provide: AssetsApi, useValue: api },
         { provide: Confirm, useValue: confirm },
+        { provide: AuthService, useValue: { user: () => null } },
       ],
     }).compileComponents();
     api.create.mockReset();

@@ -8,7 +8,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { debounceTime } from 'rxjs';
@@ -20,7 +19,8 @@ import { Asset, AssetRequest, Category } from '../../core/api/models';
 import { asProblem, problemCode } from '../../core/api/problem';
 import { Loading } from '../../shared/state';
 import { Confirm } from '../../shared/confirm-dialog';
-import { idempotencyKey } from '../../shared/format';
+import { actorLabel, idempotencyKey } from '../../shared/format';
+import { AuthService } from '../../core/auth/auth.service';
 
 /**
  * Create and edit. On edit the ETag from the load is sent as If-Match; a 409 means someone else saved first,
@@ -36,7 +36,6 @@ import { idempotencyKey } from '../../shared/format';
     MatSelectModule,
     MatButtonModule,
     MatDatepickerModule,
-    MatCardModule,
     MatIconModule,
     Loading,
   ],
@@ -45,27 +44,90 @@ import { idempotencyKey } from '../../shared/format';
     .draft {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       flex-wrap: wrap;
-      padding: 8px 12px;
-      margin-bottom: 12px;
-      border-radius: 8px;
-      background: var(--mat-sys-secondary-container);
-      color: var(--mat-sys-on-secondary-container);
+      padding: 10px 12px 10px 16px;
+      margin-bottom: 16px;
+      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--ac-accent) 30%, transparent);
+      background: var(--ac-accent-soft);
+      color: var(--ac-text);
+    }
+    .draft .mat-icon {
+      color: var(--ac-accent);
+    }
+    .draft span {
+      flex: 1;
+    }
+    form {
+      display: grid;
+      gap: 16px;
+    }
+    .section {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 24px;
+      padding: 24px;
+    }
+    .sec-head h2 {
+      margin: 10px 0 4px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .sec-head p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--ac-text-2);
+    }
+    .savebar {
+      position: sticky;
+      bottom: 16px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px 10px 18px;
+      border-radius: 14px;
+      border: 1px solid var(--ac-border);
+      background: color-mix(in srgb, var(--ac-surface) 88%, transparent);
+      backdrop-filter: saturate(1.4) blur(12px);
+      box-shadow: var(--ac-shadow);
     }
     .hint {
-      align-self: center;
-      font-size: 12px;
       margin-right: auto;
+      font-size: 12.5px;
+      color: var(--ac-text-3);
+    }
+    @media (max-width: 820px) {
+      .section {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 18px;
+      }
     }
   `,
   template: `
-    <div class="page">
-      <div class="page-title">
-        <h1>{{ id() ? 'Edit asset' : 'New asset' }}</h1>
-      </div>
+    <div class="page page-narrow">
+      <a
+        class="back"
+        [routerLink]="id() ? ['/assets', id()] : ['/assets']"
+        [attr.aria-label]="id() ? 'Back to the asset' : 'Back to all assets'"
+        ><mat-icon>arrow_back</mat-icon> {{ id() ? 'Back to the asset' : 'All assets' }}</a
+      >
+      <header class="page-title">
+        <div>
+          <h1>{{ id() ? 'Edit asset' : 'New asset' }}</h1>
+          <p class="subtitle">
+            {{
+              id()
+                ? 'Your changes are saved as a new version. If someone else saved first, you are asked before anything is overwritten.'
+                : 'Only a name and a category are required. Add the rest now or later.'
+            }}
+          </p>
+        </div>
+      </header>
       @if (loading()) {
-        <app-loading />
+        <div class="card"><app-loading [count]="6" label="Loading the form" /></div>
       } @else {
         @if (draftAvailable()) {
           <div class="draft" role="status">
@@ -75,86 +137,116 @@ import { idempotencyKey } from '../../shared/format';
             <button mat-button (click)="discardDraft()">Discard</button>
           </div>
         }
-        <mat-card appearance="outlined">
-          <mat-card-content>
-            <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-              <div class="form-grid">
-                <mat-form-field appearance="outline" class="full">
-                  <mat-label>Name</mat-label>
-                  <input matInput #nameBox formControlName="name" maxlength="120" required cdkFocusInitial />
-                  <mat-error>{{ error('name') ?? 'Name is required' }}</mat-error>
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Category</mat-label>
-                  <mat-select formControlName="categoryId" required>
-                    @for (c of categories(); track c.id) {
-                      <mat-option [value]="c.id">{{ c.name }}</mat-option>
-                    }
-                  </mat-select>
-                  <mat-error>Choose a category</mat-error>
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Asset tag</mat-label>
-                  <input matInput formControlName="assetTag" maxlength="60" placeholder="LAPTOP-1" />
-                  <mat-error>{{ error('assetTag') }}</mat-error>
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Serial number</mat-label>
-                  <input matInput formControlName="serialNumber" maxlength="120" />
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Manufacturer</mat-label>
-                  <input matInput formControlName="manufacturer" maxlength="120" />
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Model</mat-label>
-                  <input matInput formControlName="model" maxlength="120" />
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Purchase date</mat-label>
-                  <input matInput [matDatepicker]="pd" formControlName="purchaseDate" />
-                  <mat-datepicker-toggle matIconSuffix [for]="pd" /><mat-datepicker #pd />
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Warranty until</mat-label>
-                  <input matInput [matDatepicker]="wd" formControlName="warrantyUntil" />
-                  <mat-datepicker-toggle matIconSuffix [for]="wd" /><mat-datepicker #wd />
-                  <mat-error>{{ error('warrantyUntil') ?? 'Must be on or after the purchase date' }}</mat-error>
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Purchase price</mat-label>
-                  <input matInput formControlName="purchasePrice" type="number" min="0" step="0.01" />
-                  <mat-error>{{ error('purchasePrice') ?? 'Not negative, two decimals' }}</mat-error>
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Currency</mat-label>
-                  <input matInput formControlName="currency" maxlength="3" placeholder="CHF" style="text-transform:uppercase" />
-                  <mat-error>Three-letter ISO code</mat-error>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="full">
-                  <mat-label>Location</mat-label>
-                  <input matInput formControlName="location" maxlength="200" />
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="full">
-                  <mat-label>Description</mat-label>
-                  <textarea matInput formControlName="description" rows="2" maxlength="2000"></textarea>
-                </mat-form-field>
-                <mat-form-field appearance="outline" class="full">
-                  <mat-label>Notes</mat-label>
-                  <textarea matInput formControlName="notes" rows="3" maxlength="4000"></textarea>
-                </mat-form-field>
-              </div>
-              @if (formError()) {
-                <p class="mat-error" role="alert">{{ formError() }}</p>
-              }
-              <div class="actions">
-                <span class="muted hint hide-sm">Ctrl/⌘ + S saves</span>
-                <a mat-button [routerLink]="id() ? ['/assets', id()] : ['/assets']">Cancel</a>
-                <button mat-flat-button type="submit" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
-              </div>
-            </form>
-          </mat-card-content>
-        </mat-card>
+        <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+          <section class="card section">
+            <div class="sec-head">
+              <span class="tile-icon"><mat-icon aria-hidden="true">badge</mat-icon></span>
+              <h2>Basics</h2>
+              <p>What it is and how you recognise it.</p>
+            </div>
+            <div class="form-grid">
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Name</mat-label>
+                <input matInput #nameBox formControlName="name" maxlength="120" required cdkFocusInitial placeholder="MacBook Pro 14" />
+                <mat-error>{{ error('name') ?? 'Name is required' }}</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Category</mat-label>
+                <mat-select formControlName="categoryId" required>
+                  @for (c of categories(); track c.id) {
+                    <mat-option [value]="c.id">{{ c.name }}</mat-option>
+                  }
+                </mat-select>
+                <mat-error>Choose a category</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Asset tag</mat-label>
+                <input matInput formControlName="assetTag" maxlength="60" placeholder="LAPTOP-1" />
+                <mat-hint>Unique among your assets</mat-hint>
+                <mat-error>{{ error('assetTag') }}</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Manufacturer</mat-label>
+                <input matInput formControlName="manufacturer" maxlength="120" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Model</mat-label>
+                <input matInput formControlName="model" maxlength="120" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Serial number</mat-label>
+                <input matInput formControlName="serialNumber" maxlength="120" />
+              </mat-form-field>
+            </div>
+          </section>
+
+          <section class="card section">
+            <div class="sec-head">
+              <span class="tile-icon"><mat-icon aria-hidden="true">receipt_long</mat-icon></span>
+              <h2>Purchase &amp; warranty</h2>
+              <p>AssetCare reminds you before the warranty ends.</p>
+            </div>
+            <div class="form-grid">
+              <mat-form-field appearance="outline">
+                <mat-label>Purchase date</mat-label>
+                <input matInput [matDatepicker]="pd" formControlName="purchaseDate" />
+                <mat-datepicker-toggle matIconSuffix [for]="pd" /><mat-datepicker #pd />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Warranty until</mat-label>
+                <input matInput [matDatepicker]="wd" formControlName="warrantyUntil" />
+                <mat-datepicker-toggle matIconSuffix [for]="wd" /><mat-datepicker #wd />
+                <mat-error>{{ error('warrantyUntil') ?? 'Must be on or after the purchase date' }}</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Purchase price</mat-label>
+                <input matInput formControlName="purchasePrice" type="number" min="0" step="0.01" />
+                <mat-error>{{ error('purchasePrice') ?? 'Not negative, two decimals' }}</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Currency</mat-label>
+                <input matInput formControlName="currency" maxlength="3" placeholder="CHF" style="text-transform: uppercase" />
+                <mat-error>Three-letter ISO code</mat-error>
+              </mat-form-field>
+            </div>
+          </section>
+
+          <section class="card section">
+            <div class="sec-head">
+              <span class="tile-icon"><mat-icon aria-hidden="true">notes</mat-icon></span>
+              <h2>Location &amp; notes</h2>
+              <p>Where it is and anything worth remembering.</p>
+            </div>
+            <div class="form-grid">
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Location</mat-label>
+                <input matInput formControlName="location" maxlength="200" placeholder="Home office" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Description</mat-label>
+                <textarea matInput formControlName="description" rows="2" maxlength="2000"></textarea>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full">
+                <mat-label>Notes</mat-label>
+                <textarea matInput formControlName="notes" rows="3" maxlength="4000"></textarea>
+              </mat-form-field>
+            </div>
+          </section>
+
+          @if (formError()) {
+            <p class="form-error" role="alert"><mat-icon aria-hidden="true">error</mat-icon>{{ formError() }}</p>
+          }
+          <div class="savebar">
+            <span class="hint hide-sm"
+              ><kbd>{{ mac ? '⌘' : 'Ctrl' }}</kbd> <kbd>S</kbd> to save</span
+            >
+            <a mat-button [routerLink]="id() ? ['/assets', id()] : ['/assets']">Cancel</a>
+            <button mat-flat-button type="submit" [disabled]="saving()">
+              <mat-icon>{{ saving() ? 'hourglass_top' : 'check' }}</mat-icon
+              >{{ saving() ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+        </form>
       }
     </div>
   `,
@@ -169,8 +261,10 @@ export class AssetForm implements HasUnsavedChanges {
   private readonly router = inject(Router);
   private readonly snack = inject(MatSnackBar);
   private readonly confirm = inject(Confirm);
+  private readonly auth = inject(AuthService);
 
   readonly categories = signal<Category[]>([]);
+  readonly mac = /Mac|iPhone|iPad/.test(navigator.platform);
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly formError = signal<string | null>(null);
@@ -350,7 +444,7 @@ export class AssetForm implements HasUnsavedChanges {
         if (code === 'stale-version' && id) {
           const reload = await this.confirm.ask({
             title: 'Someone else changed this asset',
-            message: `${p?.changedBy ?? 'Another user'} saved a newer version${p?.changedAt ? ` at ${new Date(p.changedAt).toLocaleString()}` : ''}. Reload their version? Your unsaved changes will be discarded.`,
+            message: `${p?.changedBy ? actorLabel(p.changedBy, this.auth.user()?.subject).replace(/^you$/, 'You, in another tab or window,') : 'Another user'} saved a newer version${p?.changedAt ? ` at ${new Date(p.changedAt).toLocaleString()}` : ''}. Reload their version? Your unsaved changes will be discarded.`,
             confirmLabel: 'Reload',
           });
           if (reload) {

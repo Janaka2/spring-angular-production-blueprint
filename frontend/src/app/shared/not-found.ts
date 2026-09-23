@@ -6,11 +6,14 @@ import { MatIconModule } from '@angular/material/icon';
 @Component({
   selector: 'app-not-found',
   imports: [RouterLink, MatButtonModule, MatIconModule],
-  template: `<div class="page state">
-    <mat-icon aria-hidden="true">search_off</mat-icon>
-    <h1>Page not found</h1>
-    <p>The address may be wrong, or the item was removed.</p>
-    <a mat-stroked-button routerLink="/dashboard">Back to the dashboard</a>
+  template: `<div class="page">
+    <div class="state">
+      <span class="halo"><mat-icon aria-hidden="true">explore_off</mat-icon></span>
+      <p class="eyebrow">404</p>
+      <h1>Page not found</h1>
+      <p>The address may be wrong, or the item was removed.</p>
+      <a mat-flat-button routerLink="/dashboard"><mat-icon>arrow_back</mat-icon> Back to the dashboard</a>
+    </div>
   </div>`,
 })
 export class NotFound {}

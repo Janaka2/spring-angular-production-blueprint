@@ -9,6 +9,7 @@ export interface Shortcut {
 }
 
 export const SHORTCUTS: Shortcut[] = [
+  { keys: 'Ctrl/⌘ K', description: 'Open the command menu' },
   { keys: 'g then d', description: 'Go to the dashboard' },
   { keys: 'g then a', description: 'Go to assets' },
   { keys: 'g then s', description: 'Go to settings' },
@@ -31,6 +32,7 @@ export class Shortcuts {
   private timer: ReturnType<typeof setTimeout> | null = null;
   readonly focusSearch = signal(0);
   readonly openHelp = signal(0);
+  readonly openPalette = signal(0);
   private installed = false;
 
   install(): void {
@@ -40,6 +42,12 @@ export class Shortcuts {
   }
 
   private handle(e: KeyboardEvent): void {
+    // Ctrl/⌘ K works everywhere, even while typing, as in every app that has a command menu
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      this.openPalette.update((n) => n + 1);
+      return;
+    }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const target = e.target as HTMLElement | null;
     const typing = !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));

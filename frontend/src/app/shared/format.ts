@@ -1,29 +1,87 @@
 import { Urgency } from '../core/api/models';
 
-export function urgencyClass(u: Urgency): string {
-  switch (u) {
-    case 'OVERDUE':
-      return 'chip bad';
-    case 'DUE':
-      return 'chip warn';
-    case 'DONE':
-      return 'chip ok';
-    default:
-      return 'chip';
-  }
+export type Tone = 'ok' | 'warn' | 'bad' | 'info' | 'accent' | '';
+
+const STATUS: Record<string, { label: string; tone: Tone }> = {
+  ACTIVE: { label: 'Active', tone: 'ok' },
+  IN_REPAIR: { label: 'In repair', tone: 'warn' },
+  RETIRED: { label: 'Retired', tone: '' },
+  ARCHIVED: { label: 'Archived', tone: 'bad' },
+};
+const URGENCY: Record<Urgency, { label: string; tone: Tone }> = {
+  OVERDUE: { label: 'Overdue', tone: 'bad' },
+  DUE: { label: 'Due soon', tone: 'warn' },
+  PLANNED: { label: 'Planned', tone: 'info' },
+  DONE: { label: 'Done', tone: 'ok' },
+  CANCELLED: { label: 'Cancelled', tone: '' },
+};
+const OPERATION: Record<string, { label: string; icon: string; tone: Tone }> = {
+  CREATE: { label: 'Created', icon: 'add', tone: 'ok' },
+  UPDATE: { label: 'Updated', icon: 'edit', tone: 'accent' },
+  STATUS_CHANGE: { label: 'Status changed', icon: 'swap_horiz', tone: 'warn' },
+  ARCHIVE: { label: 'Archived', icon: 'archive', tone: 'bad' },
+  RESTORE: { label: 'Restored', icon: 'unarchive', tone: 'ok' },
+  DELETE: { label: 'Deleted', icon: 'delete', tone: 'bad' },
+  ATTACH: { label: 'File attached', icon: 'attach_file', tone: 'info' },
+  DETACH: { label: 'File removed', icon: 'link_off', tone: '' },
+};
+const CATEGORY_ICON: Record<string, string> = {
+  COMPUTER: 'laptop_mac',
+  PHONE: 'smartphone',
+  VEHICLE: 'directions_car',
+  APPLIANCE: 'kitchen',
+  EQUIPMENT: 'construction',
+  FURNITURE: 'chair',
+  OTHER: 'category',
+};
+
+export const statusLabel = (s: string): string => STATUS[s]?.label ?? s;
+export const urgencyLabel = (u: Urgency): string => URGENCY[u]?.label ?? u;
+export const operationLabel = (op: string): string => OPERATION[op]?.label ?? op.replace(/_/g, ' ').toLowerCase();
+export const operationIcon = (op: string): string => OPERATION[op]?.icon ?? 'history';
+export const operationTone = (op: string): Tone => OPERATION[op]?.tone ?? '';
+export const categoryIcon = (code: string | null | undefined): string => CATEGORY_ICON[code ?? ''] ?? 'inventory_2';
+
+/** CSS classes for a status pill: `pill` plus its tone. */
+export function statusClass(s: string): string {
+  return `pill ${STATUS[s]?.tone ?? ''}`.trim();
 }
 
-export function statusClass(s: string): string {
-  switch (s) {
-    case 'ACTIVE':
-      return 'chip ok';
-    case 'IN_REPAIR':
-      return 'chip warn';
-    case 'ARCHIVED':
-      return 'chip bad';
-    default:
-      return 'chip';
-  }
+export function urgencyClass(u: Urgency): string {
+  return `pill ${URGENCY[u]?.tone ?? ''}`.trim();
+}
+
+/** Two letters for an avatar: "Alice Smith" gives "AS", "alice" gives "AL". */
+export function initials(name: string | null | undefined): string {
+  const parts = (name ?? '')
+    .trim()
+    .split(/[\s._-]+/)
+    .filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts.length === 1 ? parts[0].slice(0, 2) : parts[0][0] + parts[parts.length - 1][0];
+}
+
+/** Who did it, for people: "you" for the signed-in user, a short id for a user known only by subject, else the name. */
+export function actorLabel(actor: string | null | undefined, me: string | null | undefined): string {
+  if (!actor) return 'someone';
+  if (me && actor === me) return 'you';
+  return /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(actor) ? `user …${actor.slice(-4)}` : actor;
+}
+
+/** Whole days from today to an ISO date (negative when in the past). */
+export function daysUntil(isoDate: string, today: Date = new Date()): number {
+  const d = new Date(isoDate + (isoDate.length === 10 ? 'T00:00:00' : ''));
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - t.getTime()) / 86400000);
+}
+
+/** "today", "tomorrow", "in 5 days", "3 days overdue". */
+export function dueLabel(isoDate: string, today: Date = new Date()): string {
+  const n = daysUntil(isoDate, today);
+  if (n === 0) return 'today';
+  if (n === 1) return 'tomorrow';
+  if (n > 1) return `in ${n} days`;
+  return n === -1 ? '1 day overdue' : `${-n} days overdue`;
 }
 
 export function bytes(n: number): string {

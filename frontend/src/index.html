@@ -4,50 +4,66 @@
     <meta charset="utf-8" />
     <title>AssetCare</title>
     <base href="/" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="AssetCare keeps track of the things you own and the maintenance they need." />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#0b57d0" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f7f7f8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b0b0e" media="(prefers-color-scheme: dark)" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <link rel="icon" href="favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="apple-touch-icon" href="icons/icon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block"
+      rel="stylesheet"
+    />
     <style>
       /* splash while the bundle loads and the login completes; replaced by the app */
       .splash {
         position: fixed;
         inset: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        font-family: Roboto, system-ui, sans-serif;
-        color: #5f6368;
-        background: #fff;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 16px;
+        font:
+          500 14px/1.4 Inter,
+          system-ui,
+          sans-serif;
+        color: #71717a;
+        background: #f7f7f8;
       }
       @media (prefers-color-scheme: dark) {
         .splash {
-          background: #131314;
-          color: #c4c7c5;
+          background: #0b0b0e;
+          color: #a1a1aa;
         }
       }
-      .splash .dot {
-        width: 32px;
-        height: 32px;
-        border: 3px solid currentColor;
-        border-right-color: transparent;
-        border-radius: 50%;
-        animation: spin 0.9s linear infinite;
+      .splash .mark {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #d946ef 100%);
+        box-shadow: 0 12px 32px -8px rgb(99 102 241 / 55%);
+        animation: breathe 1.6s ease-in-out infinite;
       }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
+      @keyframes breathe {
+        50% {
+          transform: scale(0.92);
+          opacity: 0.75;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .splash .mark {
+          animation: none;
         }
       }
     </style>
@@ -55,7 +71,7 @@
   <body>
     <app-root>
       <div class="splash" role="status" aria-live="polite">
-        <div class="dot"></div>
+        <div class="mark" aria-hidden="true"></div>
         <div>Loading AssetCare…</div>
       </div>
     </app-root>

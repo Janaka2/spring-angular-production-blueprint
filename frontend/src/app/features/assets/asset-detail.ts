@@ -6,8 +6,6 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatCardModule } from '@angular/material/card';
-import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ImagePreviewDialog } from '../../shared/image-preview-dialog';
@@ -32,7 +30,20 @@ import { asProblem, problemCode } from '../../core/api/problem';
 import { AuthService } from '../../core/auth/auth.service';
 import { Confirm } from '../../shared/confirm-dialog';
 import { Loading, Empty, ErrorState } from '../../shared/state';
-import { bytes, statusClass, urgencyClass } from '../../shared/format';
+import {
+  actorLabel,
+  bytes,
+  categoryIcon,
+  daysUntil,
+  operationIcon,
+  operationLabel,
+  operationTone,
+  statusClass,
+  statusLabel,
+  Tone,
+  urgencyClass,
+  urgencyLabel,
+} from '../../shared/format';
 
 /** Plan a maintenance item. */
 @Component({
@@ -169,8 +180,6 @@ interface Loaded<T> {
     MatButtonModule,
     MatIconModule,
     MatMenuModule,
-    MatCardModule,
-    MatListModule,
     MatDialogModule,
     Loading,
     Empty,
@@ -180,47 +189,58 @@ interface Loaded<T> {
     <div class="page">
       @let a = asset();
       @if (a.loading) {
-        <app-loading />
+        <app-loading variant="detail" label="Loading the asset" />
       } @else if (a.error || !a.data) {
-        <app-error-state message="This asset could not be loaded." />
+        <a routerLink="/assets" class="back" aria-label="Back to all assets"><mat-icon>arrow_back</mat-icon> All assets</a>
+        <div class="card"><app-error-state message="This asset could not be loaded. It may have been removed." /></div>
       } @else {
         @let x = a.data;
-        <div class="page-title">
-          <div>
-            <a routerLink="/assets" class="muted">← Assets</a>
-            <h1>
-              {{ x.name }} <span [class]="statusClass(x.status)">{{ x.status }}</span>
-            </h1>
-            <div class="muted">{{ x.category.name }} · {{ x.assetTag ?? 'no tag' }} · v{{ x.version }}</div>
+        <a routerLink="/assets" class="back no-print" aria-label="Back to all assets"><mat-icon>arrow_back</mat-icon> All assets</a>
+        <header class="hero">
+          <span class="tile-icon lg"
+            ><mat-icon aria-hidden="true">{{ categoryIcon(x.category.code) }}</mat-icon></span
+          >
+          <div class="hero-main">
+            <div class="title-row">
+              <h1 class="title">{{ x.name }}</h1>
+              <span [class]="statusClass(x.status)">{{ statusLabel(x.status) }}</span>
+            </div>
+            <div class="meta">
+              <span><mat-icon aria-hidden="true">folder</mat-icon>{{ x.category.name }}</span>
+              @if (x.assetTag) {
+                <span class="mono"><mat-icon aria-hidden="true">sell</mat-icon>{{ x.assetTag }}</span>
+              }
+              @if (x.manufacturer || x.model) {
+                <span><mat-icon aria-hidden="true">factory</mat-icon>{{ x.manufacturer }} {{ x.model }}</span>
+              }
+              <span class="faint">Updated {{ relativeTime(x.updatedAt) }} by {{ who(x.updatedBy) }}</span>
+            </div>
           </div>
-          @if (!auth.canWrite()) {
-            <div class="actions" style="margin:0">
+          <div class="actions no-print">
+            @if (!auth.canWrite()) {
               <button mat-icon-button (click)="copyLink()" aria-label="Copy link" matTooltip="Copy link"><mat-icon>link</mat-icon></button>
               <button mat-icon-button (click)="print()" aria-label="Print" matTooltip="Print"><mat-icon>print</mat-icon></button>
-            </div>
-          }
-          @if (auth.canWrite()) {
-            <div class="actions" style="margin:0">
+            } @else {
               @if (x.status !== 'ARCHIVED') {
                 <a mat-stroked-button [routerLink]="['/assets', x.id, 'edit']"><mat-icon>edit</mat-icon> Edit</a>
               }
               <button mat-stroked-button [matMenuTriggerFor]="more" aria-label="More actions"><mat-icon>more_horiz</mat-icon> More</button>
-              <mat-menu #more="matMenu">
+              <mat-menu #more="matMenu" xPosition="before">
+                @if (x.status === 'ACTIVE') {
+                  <button mat-menu-item (click)="changeStatus('IN_REPAIR')"><mat-icon>build</mat-icon>Mark as in repair</button>
+                  <button mat-menu-item (click)="changeStatus('RETIRED')"><mat-icon>do_not_disturb_on</mat-icon>Retire</button>
+                }
+                @if (x.status === 'IN_REPAIR') {
+                  <button mat-menu-item (click)="changeStatus('ACTIVE')"><mat-icon>check_circle</mat-icon>Back in service</button>
+                  <button mat-menu-item (click)="changeStatus('RETIRED')"><mat-icon>do_not_disturb_on</mat-icon>Retire</button>
+                }
                 <button mat-menu-item (click)="copyLink()"><mat-icon>link</mat-icon>Copy link</button>
                 <a mat-menu-item [routerLink]="['/assets/new']" [queryParams]="{ from: x.id }"
                   ><mat-icon>content_copy</mat-icon>Duplicate</a
                 >
                 <button mat-menu-item (click)="print()"><mat-icon>print</mat-icon>Print</button>
-                @if (x.status === 'ACTIVE') {
-                  <button mat-menu-item (click)="changeStatus('IN_REPAIR')">Mark as in repair</button
-                  ><button mat-menu-item (click)="changeStatus('RETIRED')">Retire</button>
-                }
-                @if (x.status === 'IN_REPAIR') {
-                  <button mat-menu-item (click)="changeStatus('ACTIVE')">Back in service</button
-                  ><button mat-menu-item (click)="changeStatus('RETIRED')">Retire</button>
-                }
                 @if (x.status !== 'ARCHIVED') {
-                  <button mat-menu-item (click)="archive()"><mat-icon>archive</mat-icon>Archive</button>
+                  <button mat-menu-item (click)="archive()" class="danger"><mat-icon>archive</mat-icon>Archive</button>
                 }
                 @if (x.status === 'ARCHIVED' && auth.isAdmin()) {
                   <button mat-menu-item (click)="restore()"><mat-icon>unarchive</mat-icon>Restore</button>
@@ -229,145 +249,254 @@ interface Loaded<T> {
                   </button>
                 }
               </mat-menu>
-            </div>
-          }
-        </div>
+            }
+          </div>
+        </header>
 
-        <mat-tab-group dynamicHeight>
+        <mat-tab-group dynamicHeight animationDuration="150ms" mat-stretch-tabs="false" mat-align-tabs="start">
           <mat-tab label="Details">
-            <mat-card appearance="outlined" style="margin-top:12px"
-              ><mat-card-content>
-                <dl class="kv">
-                  <dt>Manufacturer / model</dt>
-                  <dd>{{ x.manufacturer ?? '—' }} {{ x.model ?? '' }}</dd>
-                  <dt>Serial number</dt>
-                  <dd>{{ x.serialNumber ?? '—' }}</dd>
-                  <dt>Purchased</dt>
-                  <dd>
-                    {{ x.purchaseDate ? (x.purchaseDate | date: 'mediumDate') : '—' }}
-                    @if (x.purchasePrice !== null) {
-                      · {{ x.purchasePrice | currency: x.currency ?? 'CHF' }}
-                    }
-                  </dd>
-                  <dt>Warranty until</dt>
-                  <dd>{{ x.warrantyUntil ? (x.warrantyUntil | date: 'mediumDate') : '—' }}</dd>
-                  <dt>Location</dt>
-                  <dd>{{ x.location ?? '—' }}</dd>
-                  <dt>Description</dt>
-                  <dd>{{ x.description ?? '—' }}</dd>
-                  <dt>Notes</dt>
-                  <dd style="white-space:pre-wrap">{{ x.notes ?? '—' }}</dd>
-                  <dt>Created</dt>
-                  <dd>{{ x.createdAt | date: 'medium' }} by {{ x.createdBy }}</dd>
-                  <dt>Updated</dt>
-                  <dd>{{ x.updatedAt | date: 'medium' }} by {{ x.updatedBy }}</dd>
+            <div class="details">
+              <section class="card">
+                <div class="card-head"><h2>Overview</h2></div>
+                <dl class="fields card-pad">
+                  <div>
+                    <dt>Manufacturer</dt>
+                    <dd>{{ x.manufacturer ?? '—' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Model</dt>
+                    <dd>{{ x.model ?? '—' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Serial number</dt>
+                    <dd [class.mono]="!!x.serialNumber">{{ x.serialNumber ?? '—' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Asset tag</dt>
+                    <dd [class.mono]="!!x.assetTag">{{ x.assetTag ?? '—' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Category</dt>
+                    <dd>{{ x.category.name }}</dd>
+                  </div>
+                  <div>
+                    <dt>Location</dt>
+                    <dd>{{ x.location ?? '—' }}</dd>
+                  </div>
+                  <div class="wide">
+                    <dt>Description</dt>
+                    <dd>{{ x.description ?? '—' }}</dd>
+                  </div>
+                  <div class="wide">
+                    <dt>Notes</dt>
+                    <dd style="white-space: pre-wrap">{{ x.notes ?? '—' }}</dd>
+                  </div>
                 </dl>
-              </mat-card-content></mat-card
-            >
+              </section>
+              <div class="side">
+                <section class="card">
+                  <div class="card-head"><h2>Purchase &amp; warranty</h2></div>
+                  <div class="card-pad purchase">
+                    <div class="price num">
+                      {{ x.purchasePrice !== null ? (x.purchasePrice | currency: x.currency ?? 'CHF') : '—' }}
+                    </div>
+                    <div class="muted">
+                      {{ x.purchaseDate ? 'Purchased ' + (x.purchaseDate | date: 'mediumDate') : 'Purchase date not recorded' }}
+                    </div>
+                    @let w = warranty();
+                    <div class="warranty">
+                      <div class="w-row">
+                        <span>Warranty</span>
+                        @if (w) {
+                          <span [class]="'pill ' + w.tone">{{ w.label }}</span>
+                        } @else {
+                          <span class="faint">Not recorded</span>
+                        }
+                      </div>
+                      @if (w && w.progress !== null) {
+                        <div
+                          class="track"
+                          role="progressbar"
+                          [attr.aria-valuenow]="w.progress"
+                          aria-valuemin="0"
+                          aria-valuemax="100"
+                          aria-label="Warranty used"
+                        >
+                          <span [style.width.%]="w.progress" [class]="w.tone"></span>
+                        </div>
+                      }
+                      @if (x.warrantyUntil) {
+                        <div class="faint small">Until {{ x.warrantyUntil | date: 'mediumDate' }}</div>
+                      }
+                    </div>
+                  </div>
+                </section>
+                <section class="card">
+                  <div class="card-head"><h2>Record</h2></div>
+                  <dl class="kv card-pad small">
+                    <dt>Created</dt>
+                    <dd>{{ x.createdAt | date: 'medium' }} · {{ who(x.createdBy) }}</dd>
+                    <dt>Updated</dt>
+                    <dd>{{ x.updatedAt | date: 'medium' }} · {{ who(x.updatedBy) }}</dd>
+                    <dt>Version</dt>
+                    <dd class="num">v{{ x.version }}</dd>
+                  </dl>
+                </section>
+              </div>
+            </div>
           </mat-tab>
 
           <mat-tab [label]="'Maintenance (' + (maintenance().data?.length ?? 0) + ')'">
-            <div class="actions" style="margin:12px 0">
+            <div class="tab-bar">
+              <p class="muted">Planned work and reminders. Recurring items schedule their next occurrence when you mark them done.</p>
               @if (auth.canWrite() && x.status !== 'ARCHIVED') {
                 <button mat-flat-button (click)="plan()"><mat-icon>event</mat-icon> Plan maintenance</button>
               }
             </div>
             @let m = maintenance();
-            @if (m.loading) {
-              <app-loading />
-            } @else if (m.error) {
-              <app-error-state />
-            } @else if (!m.data?.length) {
-              <app-empty icon="event_available" message="Nothing planned." />
-            } @else {
-              <mat-list>
-                @for (i of m.data; track i.id) {
-                  <mat-list-item>
-                    <span matListItemTitle
-                      >{{ i.description }} <span [class]="urgencyClass(i.urgency)">{{ i.urgency }}</span></span
-                    >
-                    <span matListItemLine
-                      >{{ i.type }} · due {{ i.dueDate | date: 'mediumDate' }}
-                      @if (i.recurrence) {
-                        · repeats {{ i.recurrence }}
-                      }
-                      @if (i.serviceProvider) {
-                        · {{ i.serviceProvider }}
-                      }
-                    </span>
-                    @if (i.status === 'PLANNED' && auth.canWrite()) {
-                      <span matListItemMeta>
-                        <button mat-button (click)="complete(i)">Done</button>
-                        <button mat-icon-button aria-label="Edit or reschedule" matTooltip="Edit or reschedule" (click)="reschedule(i)">
-                          <mat-icon>edit_calendar</mat-icon>
-                        </button>
-                        <button mat-icon-button aria-label="Cancel item" matTooltip="Cancel" (click)="cancel(i)">
-                          <mat-icon>close</mat-icon>
-                        </button>
+            <div class="card">
+              @if (m.loading) {
+                <app-loading />
+              } @else if (m.error) {
+                <app-error-state />
+              } @else if (!m.data?.length) {
+                <app-empty
+                  icon="event_available"
+                  heading="Nothing planned"
+                  message="Plan inspections, services and replacements to get reminded in time."
+                />
+              } @else {
+                <ul class="rows">
+                  @for (i of m.data; track i.id) {
+                    <li class="row" [class.done]="i.status !== 'PLANNED'">
+                      <span class="date" [class.late]="i.urgency === 'OVERDUE'"
+                        ><span class="mon">{{ i.dueDate | date: 'MMM' }}</span
+                        ><span class="day">{{ i.dueDate | date: 'd' }}</span></span
+                      >
+                      <span class="main">
+                        <span class="line1"
+                          >{{ i.description }} <span [class]="urgencyClass(i.urgency)">{{ urgencyLabel(i.urgency) }}</span></span
+                        >
+                        <span class="line2"
+                          >{{ typeLabel(i.type) }} · due {{ i.dueDate | date: 'mediumDate' }}
+                          @if (i.recurrence) {
+                            · repeats {{ recurrenceLabel(i.recurrence) }}
+                          }
+                          @if (i.serviceProvider) {
+                            · {{ i.serviceProvider }}
+                          }
+                          @if (i.cost !== null) {
+                            · {{ i.cost | currency: i.currency ?? 'CHF' }}
+                          }
+                        </span>
                       </span>
-                    }
-                  </mat-list-item>
-                }
-              </mat-list>
-            }
+                      @if (i.status === 'PLANNED' && auth.canWrite()) {
+                        <span class="row-actions">
+                          <button mat-stroked-button (click)="complete(i)"><mat-icon>check</mat-icon>Done</button>
+                          <button mat-icon-button aria-label="Edit or reschedule" matTooltip="Edit or reschedule" (click)="reschedule(i)">
+                            <mat-icon>edit_calendar</mat-icon>
+                          </button>
+                          <button mat-icon-button aria-label="Cancel item" matTooltip="Cancel" (click)="cancel(i)">
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </span>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
           </mat-tab>
 
           <mat-tab [label]="'Service history (' + (records().data?.length ?? 0) + ')'">
-            <div class="actions" style="margin:12px 0">
+            <div class="tab-bar">
+              <p class="muted">Every repair and service, planned or not.</p>
               @if (auth.canWrite() && x.status !== 'ARCHIVED') {
                 <button mat-stroked-button (click)="recordService()"><mat-icon>build</mat-icon> Record a repair</button>
               }
             </div>
             @let r = records();
-            @if (r.loading) {
-              <app-loading />
-            } @else if (r.error) {
-              <app-error-state />
-            } @else if (!r.data?.length) {
-              <app-empty icon="build" message="No service recorded yet." />
-            } @else {
-              <mat-list>
-                @for (s of r.data; track s.id) {
-                  <mat-list-item>
-                    <span matListItemTitle>{{ s.summary }}</span>
-                    <span matListItemLine
-                      >{{ s.performedOn | date: 'mediumDate' }}
-                      @if (s.performedBy) {
-                        · {{ s.performedBy }}
-                      }
-                      @if (s.cost !== null) {
-                        · {{ s.cost | currency: s.currency ?? 'CHF' }}
-                      }
-                    </span>
-                  </mat-list-item>
-                }
-              </mat-list>
-            }
+            <div class="card">
+              @if (r.loading) {
+                <app-loading />
+              } @else if (r.error) {
+                <app-error-state />
+              } @else if (!r.data?.length) {
+                <app-empty icon="build" heading="No service yet" message="Completed maintenance and recorded repairs appear here." />
+              } @else {
+                <ol class="timeline">
+                  @for (sr of r.data; track sr.id) {
+                    <li>
+                      <span class="node ok"><mat-icon aria-hidden="true">build</mat-icon></span>
+                      <div class="tl-body">
+                        <div class="line1">{{ sr.summary }}</div>
+                        <div class="line2">
+                          {{ sr.performedOn | date: 'mediumDate' }}
+                          @if (sr.performedBy) {
+                            · {{ sr.performedBy }}
+                          }
+                          @if (sr.cost !== null) {
+                            · <span class="num">{{ sr.cost | currency: sr.currency ?? 'CHF' }}</span>
+                          }
+                        </div>
+                        @if (sr.notes) {
+                          <p class="note">{{ sr.notes }}</p>
+                        }
+                      </div>
+                    </li>
+                  }
+                </ol>
+              }
+            </div>
           </mat-tab>
 
           <mat-tab [label]="'Attachments (' + (attachments().data?.length ?? 0) + ')'">
-            <div class="actions" style="margin:12px 0">
-              @if (auth.canWrite() && x.status !== 'ARCHIVED') {
-                <input #file type="file" hidden accept=".pdf,.jpg,.jpeg,.png,.webp,.txt" (change)="upload(file)" />
-                <button mat-stroked-button (click)="file.click()" [disabled]="uploading()">
-                  <mat-icon>attach_file</mat-icon> {{ uploading() ? 'Uploading…' : 'Upload' }}
-                </button>
-              }
-            </div>
+            @if (auth.canWrite() && x.status !== 'ARCHIVED') {
+              <input #file type="file" hidden accept=".pdf,.jpg,.jpeg,.png,.webp,.txt" (change)="upload(file)" />
+              <button
+                type="button"
+                class="dropzone"
+                [class.over]="dragOver()"
+                [disabled]="uploading()"
+                (click)="file.click()"
+                (dragover)="$event.preventDefault(); dragOver.set(true)"
+                (dragleave)="dragOver.set(false)"
+                (drop)="onDrop($event)"
+              >
+                <span class="tile-icon"
+                  ><mat-icon aria-hidden="true">{{ uploading() ? 'hourglass_top' : 'upload_file' }}</mat-icon></span
+                >
+                <span>
+                  <strong>{{ uploading() ? 'Uploading…' : 'Upload a file' }}</strong>
+                  <span class="muted"> or drop it here · PDF, JPEG, PNG, WebP or text, up to 10 MB</span>
+                </span>
+              </button>
+            }
             @let at = attachments();
             @if (at.loading) {
-              <app-loading />
+              <app-loading variant="cards" [count]="3" />
             } @else if (at.error) {
-              <app-error-state />
+              <div class="card"><app-error-state /></div>
             } @else if (!at.data?.length) {
-              <app-empty icon="attach_file" message="No documents or photos yet. PDF, JPEG, PNG, WebP and text up to 10 MB." />
+              <div class="card">
+                <app-empty
+                  icon="attach_file"
+                  heading="No files yet"
+                  message="Keep receipts, manuals, warranty cards and photos with the asset."
+                />
+              </div>
             } @else {
-              <mat-list>
+              <div class="files">
                 @for (f of at.data; track f.id) {
-                  <mat-list-item>
-                    <span matListItemTitle>{{ f.fileName }}</span>
-                    <span matListItemLine>{{ bytes(f.sizeBytes) }} · {{ f.uploadedAt | date: 'medium' }}</span>
-                    <span matListItemMeta>
+                  <div class="card file">
+                    <span class="tile-icon" [class.neutral]="!f.contentType.startsWith('image/')"
+                      ><mat-icon aria-hidden="true">{{ fileIcon(f.contentType) }}</mat-icon></span
+                    >
+                    <div class="file-main">
+                      <div class="line1" [title]="f.fileName">{{ f.fileName }}</div>
+                      <div class="line2">{{ bytes(f.sizeBytes) }} · {{ f.uploadedAt | date: 'mediumDate' }}</div>
+                    </div>
+                    <div class="file-actions">
                       @if (f.contentType.startsWith('image/')) {
                         <button mat-icon-button aria-label="Preview" matTooltip="Preview" (click)="preview(f)">
                           <mat-icon>visibility</mat-icon>
@@ -377,55 +506,365 @@ interface Loaded<T> {
                         <mat-icon>download</mat-icon>
                       </button>
                       @if (auth.canWrite()) {
-                        <button mat-icon-button aria-label="Delete attachment" (click)="removeAttachment(f)">
+                        <button mat-icon-button aria-label="Delete attachment" matTooltip="Delete" (click)="removeAttachment(f)">
                           <mat-icon>delete</mat-icon>
                         </button>
                       }
-                    </span>
-                  </mat-list-item>
+                    </div>
+                  </div>
                 }
-              </mat-list>
+              </div>
             }
           </mat-tab>
 
           <mat-tab label="History">
             @let h = history();
-            @if (h.loading) {
-              <app-loading />
-            } @else if (h.error) {
-              <app-error-state />
-            } @else {
-              <mat-list>
-                @for (e of h.data; track e.id) {
-                  <mat-list-item>
-                    <span matListItemTitle
-                      >{{ e.operation }} <span class="muted">by {{ e.actor }} · {{ relativeTime(e.occurredAt) }}</span></span
-                    >
-                    <span matListItemLine
-                      >{{ e.occurredAt | date: 'medium' }}
-                      @if (e.requestId) {
-                        · request {{ e.requestId }}
-                      }
-                    </span>
-                    @if (e.changedFields) {
-                      <span matListItemLine>
-                        @for (c of e.changedFields | keyvalue; track c.key) {
-                          <span class="chip">{{ c.key }}: {{ c.value.from ?? '∅' }} → {{ c.value.to ?? '∅' }}</span>
+            <div class="card">
+              @if (h.loading) {
+                <app-loading />
+              } @else if (h.error) {
+                <app-error-state />
+              } @else {
+                <ol class="timeline">
+                  @for (e of h.data; track e.id) {
+                    <li>
+                      <span [class]="'node ' + operationTone(e.operation)"
+                        ><mat-icon aria-hidden="true">{{ operationIcon(e.operation) }}</mat-icon></span
+                      >
+                      <div class="tl-body">
+                        <div class="line1">
+                          <strong>{{ operationLabel(e.operation) }}</strong> <span class="muted">by {{ who(e.actor) }}</span>
+                          <span class="faint" [title]="e.occurredAt | date: 'medium'">· {{ relativeTime(e.occurredAt) }}</span>
+                        </div>
+                        <div class="line2 mono">
+                          {{ e.occurredAt | date: 'medium' }}
+                          @if (e.requestId) {
+                            · request {{ e.requestId }}
+                          }
+                        </div>
+                        @if (e.changedFields) {
+                          <div class="changes">
+                            @for (c of e.changedFields | keyvalue; track c.key) {
+                              <span class="chip"
+                                ><strong>{{ c.key }}</strong> {{ c.value.from ?? '∅' }}
+                                <mat-icon aria-hidden="true">arrow_forward</mat-icon> {{ c.value.to ?? '∅' }}</span
+                              >
+                            }
+                          </div>
                         }
-                      </span>
-                    }
-                  </mat-list-item>
-                }
-              </mat-list>
-            }
+                      </div>
+                    </li>
+                  }
+                </ol>
+              }
+            </div>
           </mat-tab>
         </mat-tab-group>
       }
     </div>
   `,
   styles: `
-    mat-list-item .chip {
-      margin-right: 6px;
+    .hero {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .hero-main {
+      flex: 1;
+      min-width: 240px;
+    }
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 18px;
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--ac-text-2);
+    }
+    .meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .meta .mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      color: var(--ac-text-3);
+    }
+    .details {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .side {
+      display: grid;
+      gap: 16px;
+    }
+    .purchase {
+      display: grid;
+      gap: 4px;
+    }
+    .price {
+      font-size: 26px;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+    .warranty {
+      display: grid;
+      gap: 8px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--ac-border);
+    }
+    .w-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 500;
+    }
+    .track {
+      height: 6px;
+      border-radius: 999px;
+      background: var(--ac-surface-2);
+      overflow: hidden;
+    }
+    .track span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: var(--ac-success);
+    }
+    .track span.warn {
+      background: var(--ac-warn);
+    }
+    .track span.bad {
+      background: var(--ac-danger);
+    }
+    .small {
+      font-size: 12.5px;
+    }
+    .tab-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .tab-bar p {
+      margin: 0;
+      font-size: 13px;
+    }
+    .date {
+      display: grid;
+      place-items: center;
+      flex: none;
+      width: 44px;
+      height: 46px;
+      border-radius: 10px;
+      border: 1px solid var(--ac-border);
+      line-height: 1.1;
+    }
+    .date .mon {
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--ac-accent);
+    }
+    .date .day {
+      font-size: 17px;
+      font-weight: 650;
+    }
+    .date.late .mon {
+      color: var(--ac-danger);
+    }
+    li.row + li.row {
+      border-top: 1px solid var(--ac-border);
+      border-radius: 0;
+    }
+    li.row {
+      padding: 14px;
+      flex-wrap: wrap;
+    }
+    li.row.done {
+      opacity: 0.7;
+    }
+    li.row .line1 {
+      white-space: normal;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    li.row .line2 {
+      white-space: normal;
+      margin-top: 2px;
+    }
+    .row-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .timeline {
+      list-style: none;
+      margin: 0;
+      padding: 20px 20px 8px;
+    }
+    .timeline li {
+      position: relative;
+      display: flex;
+      gap: 14px;
+      padding-bottom: 20px;
+    }
+    .timeline li:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 34px;
+      bottom: 4px;
+      width: 1px;
+      background: var(--ac-border);
+    }
+    .node {
+      display: grid;
+      place-items: center;
+      flex: none;
+      width: 31px;
+      height: 31px;
+      border-radius: 50%;
+      border: 1px solid var(--ac-border);
+      background: var(--ac-surface-2);
+      color: var(--ac-text-2);
+    }
+    .node .mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+    .node.ok {
+      color: var(--ac-success);
+      background: var(--ac-success-soft);
+      border-color: transparent;
+    }
+    .node.warn {
+      color: var(--ac-warn);
+      background: var(--ac-warn-soft);
+      border-color: transparent;
+    }
+    .node.bad {
+      color: var(--ac-danger);
+      background: var(--ac-danger-soft);
+      border-color: transparent;
+    }
+    .node.info {
+      color: var(--ac-info);
+      background: var(--ac-info-soft);
+      border-color: transparent;
+    }
+    .node.accent {
+      color: var(--ac-accent);
+      background: var(--ac-accent-soft);
+      border-color: transparent;
+    }
+    .tl-body {
+      flex: 1;
+      min-width: 0;
+      padding-top: 4px;
+    }
+    .tl-body .line1 {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0 6px;
+      font-weight: 500;
+    }
+    .tl-body .line2 {
+      margin-top: 2px;
+      font-size: 12px;
+      color: var(--ac-text-3);
+      overflow-wrap: anywhere;
+    }
+    .note {
+      margin: 8px 0 0;
+      color: var(--ac-text-2);
+      font-size: 13px;
+    }
+    .changes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .changes .mat-icon {
+      font-size: 13px;
+      width: 13px;
+      height: 13px;
+    }
+    .dropzone {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      margin-bottom: 16px;
+      padding: 16px 18px;
+      border: 1.5px dashed var(--ac-border-strong);
+      border-radius: var(--ac-radius-lg);
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition:
+        border-color 0.15s,
+        background-color 0.15s;
+    }
+    .dropzone:hover,
+    .dropzone.over {
+      border-color: var(--ac-accent);
+      background: var(--ac-accent-soft);
+    }
+    .files {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .file {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 8px 12px 14px;
+    }
+    .file-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .file-main .line1 {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-main .line2 {
+      font-size: 12px;
+      color: var(--ac-text-3);
+    }
+    .file-actions {
+      display: flex;
+    }
+    @media (max-width: 900px) {
+      .details {
+        grid-template-columns: 1fr;
+      }
     }
   `,
 })
@@ -440,7 +879,15 @@ export class AssetDetail {
 
   private readonly notify = inject(Notify);
   readonly statusClass = statusClass;
+  readonly statusLabel = statusLabel;
   readonly urgencyClass = urgencyClass;
+  readonly urgencyLabel = urgencyLabel;
+  readonly categoryIcon = categoryIcon;
+  readonly operationLabel = operationLabel;
+  readonly operationIcon = operationIcon;
+  readonly operationTone = operationTone;
+  readonly dragOver = signal(false);
+  readonly who = (actor: string | null | undefined): string => actorLabel(actor, this.auth.user()?.subject);
   readonly bytes = bytes;
   readonly relativeTime = relativeTime;
 
@@ -452,6 +899,21 @@ export class AssetDetail {
   readonly uploading = signal(false);
   private etag = '';
   readonly title = computed(() => this.asset().data?.name ?? 'Asset');
+
+  /** Warranty state for the side card: a label, a tone and how much of the period has passed. */
+  readonly warranty = computed<{ label: string; tone: Tone; progress: number | null } | null>(() => {
+    const x = this.asset().data;
+    if (!x?.warrantyUntil) return null;
+    const left = daysUntil(x.warrantyUntil);
+    const tone: Tone = left < 0 ? 'bad' : left <= 60 ? 'warn' : 'ok';
+    const label = left < 0 ? 'Expired' : left === 0 ? 'Ends today' : left <= 60 ? `${left} days left` : 'Active';
+    let progress: number | null = null;
+    if (x.purchaseDate) {
+      const total = daysUntil(x.warrantyUntil) - daysUntil(x.purchaseDate);
+      progress = total > 0 ? Math.min(100, Math.max(0, Math.round(((total - Math.max(left, 0)) / total) * 100))) : 100;
+    }
+    return { label, tone, progress };
+  });
 
   constructor() {
     queueMicrotask(() => this.loadAll());
@@ -624,7 +1086,31 @@ export class AssetDetail {
   upload(input: HTMLInputElement): void {
     const file = input.files?.[0];
     input.value = '';
-    if (!file) return;
+    if (file) this.uploadFile(file);
+  }
+
+  onDrop(e: DragEvent): void {
+    e.preventDefault();
+    this.dragOver.set(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file && !this.uploading()) this.uploadFile(file);
+  }
+
+  typeLabel(t: string): string {
+    return t.charAt(0) + t.slice(1).toLowerCase();
+  }
+
+  recurrenceLabel(r: string): string {
+    return ({ P1M: 'monthly', P3M: 'quarterly', P6M: 'twice a year', P1Y: 'yearly' } as Record<string, string>)[r] ?? r;
+  }
+
+  fileIcon(contentType: string): string {
+    if (contentType.startsWith('image/')) return 'image';
+    if (contentType === 'application/pdf') return 'picture_as_pdf';
+    return 'description';
+  }
+
+  private uploadFile(file: File): void {
     this.uploading.set(true);
     this.api.upload(this.id(), file).subscribe({
       next: () => {

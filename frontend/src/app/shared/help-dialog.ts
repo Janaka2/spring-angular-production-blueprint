@@ -55,13 +55,6 @@ import { AuthService } from '../core/auth/auth.service';
     .shortcuts td {
       padding: 2px 12px 2px 0;
     }
-    kbd {
-      font-family: ui-monospace, monospace;
-      background: var(--mat-sys-surface-container-high);
-      border-radius: 4px;
-      padding: 1px 6px;
-      font-size: 12px;
-    }
   `,
 })
 export class HelpDialog {

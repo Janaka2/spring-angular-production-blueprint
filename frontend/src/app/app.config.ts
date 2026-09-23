@@ -1,6 +1,7 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { ApplicationConfig, ErrorHandler, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter, TitleStrategy, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
+import { provideRouter, TitleStrategy, withComponentInputBinding, withInMemoryScrolling, withViewTransitions } from '@angular/router';
+import { MatIconRegistry } from '@angular/material/icon';
 import { provideOAuthClient } from 'angular-oauth2-oidc';
 import { routes } from './app.routes';
 import { errorInterceptor } from './core/api/error.interceptor';
@@ -20,6 +21,7 @@ export const appConfig: ApplicationConfig = {
       routes,
       withComponentInputBinding(),
       withInMemoryScrolling({ scrollPositionRestoration: 'enabled', anchorScrolling: 'enabled' }),
+      withViewTransitions({ skipInitialTransition: true }), // a short cross-fade between pages where the browser supports it
     ),
     { provide: TitleStrategy, useClass: AppTitleStrategy },
     provideHttpClient(withInterceptors([busyInterceptor, authInterceptor, errorInterceptor])),
@@ -28,6 +30,7 @@ export const appConfig: ApplicationConfig = {
     // inject() only works before the first await, so every dependency is taken up front
     provideAppInitializer(async () => {
       inject(PreferencesService); // applies the stored theme before the first paint
+      inject(MatIconRegistry).setDefaultFontSetClass('material-symbols-rounded'); // every <mat-icon> uses Material Symbols
       const config = inject(ConfigService);
       const auth = inject(AuthService);
       await config.load();

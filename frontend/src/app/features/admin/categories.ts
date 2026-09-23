@@ -13,6 +13,7 @@ import { Category, CategoryRequest } from '../../core/api/models';
 import { asProblem } from '../../core/api/problem';
 import { Notify } from '../../core/ui/notify';
 import { Loading, Empty, ErrorState } from '../../shared/state';
+import { categoryIcon } from '../../shared/format';
 
 @Component({
   selector: 'app-category-dialog',
@@ -106,71 +107,84 @@ export class CategoryDialog {
 @Component({
   selector: 'app-categories',
   imports: [MatTableModule, MatButtonModule, MatIconModule, MatTooltipModule, Loading, Empty, ErrorState],
+  styles: `
+    tr.inactive .cell-main {
+      opacity: 0.55;
+    }
+  `,
   template: `
     <div class="page">
       <div class="page-title">
         <div>
           <h1>Categories</h1>
-          <p class="muted" style="margin:4px 0 0">
-            Reference data for every asset. Inactive categories stay on existing assets but are hidden for new ones.
-          </p>
+          <p class="subtitle">Reference data for every asset. Inactive categories stay on existing assets but are hidden for new ones.</p>
         </div>
         <button mat-flat-button (click)="edit(null)"><mat-icon>add</mat-icon> New category</button>
       </div>
       @let s = state();
-      @if (s.loading) {
-        <app-loading />
-      } @else if (s.error) {
-        <app-error-state message="Categories could not be loaded." [retry]="reload" />
-      } @else if (!s.data?.length) {
-        <app-empty icon="category" message="No categories yet." />
-      } @else {
-        <table mat-table [dataSource]="s.data ?? []" aria-label="Categories">
-          <ng-container matColumnDef="sortOrder">
-            <th mat-header-cell *matHeaderCellDef class="hide-sm">Order</th>
-            <td mat-cell *matCellDef="let c" class="hide-sm">{{ c.sortOrder }}</td>
-          </ng-container>
-          <ng-container matColumnDef="code">
-            <th mat-header-cell *matHeaderCellDef>Code</th>
-            <td mat-cell *matCellDef="let c">
-              <code>{{ c.code }}</code>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef>Name</th>
-            <td mat-cell *matCellDef="let c">
-              <strong>{{ c.name }}</strong>
-              <div class="muted hide-sm">{{ c.description }}</div>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="active">
-            <th mat-header-cell *matHeaderCellDef>Status</th>
-            <td mat-cell *matCellDef="let c">
-              <span [class]="c.active ? 'chip ok' : 'chip'">{{ c.active ? 'ACTIVE' : 'INACTIVE' }}</span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef><span class="cdk-visually-hidden">Actions</span></th>
-            <td mat-cell *matCellDef="let c" style="text-align:right">
-              <button mat-icon-button (click)="edit(c)" aria-label="Edit category" matTooltip="Edit"><mat-icon>edit</mat-icon></button>
-              <button
-                mat-icon-button
-                (click)="toggle(c)"
-                [attr.aria-label]="c.active ? 'Deactivate category' : 'Activate category'"
-                [matTooltip]="c.active ? 'Deactivate' : 'Activate'"
-              >
-                <mat-icon>{{ c.active ? 'visibility_off' : 'visibility' }}</mat-icon>
-              </button>
-            </td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="columns"></tr>
-          <tr mat-row *matRowDef="let c; columns: columns"></tr>
-        </table>
-      }
+      <div class="card table-card">
+        @if (s.loading) {
+          <app-loading variant="table" [count]="6" label="Loading categories" />
+        } @else if (s.error) {
+          <app-error-state message="Categories could not be loaded." [retry]="reload" />
+        } @else if (!s.data?.length) {
+          <app-empty icon="category" heading="No categories yet" message="Categories group assets and power the filters." />
+        } @else {
+          <table mat-table [dataSource]="s.data ?? []" aria-label="Categories">
+            <ng-container matColumnDef="sortOrder">
+              <th mat-header-cell *matHeaderCellDef class="hide-sm">Order</th>
+              <td mat-cell *matCellDef="let c" class="hide-sm faint num">{{ c.sortOrder }}</td>
+            </ng-container>
+            <ng-container matColumnDef="code">
+              <th mat-header-cell *matHeaderCellDef>Code</th>
+              <td mat-cell *matCellDef="let c">
+                <code>{{ c.code }}</code>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef>Name</th>
+              <td mat-cell *matCellDef="let c">
+                <div class="cell-main">
+                  <span class="tile-icon neutral"
+                    ><mat-icon aria-hidden="true">{{ categoryIcon(c.code) }}</mat-icon></span
+                  >
+                  <div>
+                    <strong>{{ c.name }}</strong>
+                    <div class="sub hide-sm">{{ c.description }}</div>
+                  </div>
+                </div>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="active">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let c">
+                <span [class]="c.active ? 'pill ok' : 'pill'">{{ c.active ? 'Active' : 'Inactive' }}</span>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef><span class="cdk-visually-hidden">Actions</span></th>
+              <td mat-cell *matCellDef="let c" style="text-align:right">
+                <button mat-icon-button (click)="edit(c)" aria-label="Edit category" matTooltip="Edit"><mat-icon>edit</mat-icon></button>
+                <button
+                  mat-icon-button
+                  (click)="toggle(c)"
+                  [attr.aria-label]="c.active ? 'Deactivate category' : 'Activate category'"
+                  [matTooltip]="c.active ? 'Deactivate' : 'Activate'"
+                >
+                  <mat-icon>{{ c.active ? 'visibility_off' : 'visibility' }}</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="columns"></tr>
+            <tr mat-row *matRowDef="let c; columns: columns" [class.inactive]="!c.active"></tr>
+          </table>
+        }
+      </div>
     </div>
   `,
 })
 export class Categories {
+  readonly categoryIcon = categoryIcon;
   private readonly api = inject(AssetsApi);
   private readonly dialog = inject(MatDialog);
   private readonly notify = inject(Notify);

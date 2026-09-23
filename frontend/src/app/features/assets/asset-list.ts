@@ -19,7 +19,7 @@ import { AssetsApi } from '../../core/api/assets.api';
 import { Asset, AssetStatus, Category, Page } from '../../core/api/models';
 import { AuthService } from '../../core/auth/auth.service';
 import { Loading, Empty, ErrorState } from '../../shared/state';
-import { statusClass, toCsv, downloadText } from '../../shared/format';
+import { statusClass, statusLabel, categoryIcon, relativeTime, toCsv, downloadText } from '../../shared/format';
 import { PreferencesService } from '../../core/ui/preferences';
 import { Shortcuts } from '../../core/ui/shortcuts';
 import { Notify } from '../../core/ui/notify';
@@ -52,47 +52,51 @@ import { Notify } from '../../core/ui/notify';
   ],
   template: `
     <div class="page">
-      <div class="page-title">
+      <header class="page-title">
         <div>
           <h1>Assets</h1>
-          @if (result().data; as d) {
-            <span class="count" aria-live="polite"
-              >{{ d.totalItems }} {{ d.totalItems === 1 ? 'asset' : 'assets' }}
+          <p class="subtitle" aria-live="polite">
+            @if (result().data; as d) {
+              {{ d.totalItems }} {{ d.totalItems === 1 ? 'asset' : 'assets' }}
               @if (hasFilter()) {
-                matching
+                matching your filters
               }
-            </span>
-          }
+            } @else {
+              Everything you own, in one place
+            }
+          </p>
         </div>
-        <div class="actions" style="margin:0">
+        <div class="actions">
           <button mat-icon-button (click)="reload()" aria-label="Refresh" matTooltip="Refresh"><mat-icon>refresh</mat-icon></button>
           <button mat-stroked-button [matMenuTriggerFor]="exportMenu" [disabled]="!result().data?.totalItems" aria-label="Export">
             <mat-icon>download</mat-icon> Export
           </button>
           <mat-menu #exportMenu="matMenu">
-            <button mat-menu-item (click)="exportCsv(false)">This page as CSV</button>
-            <button mat-menu-item (click)="exportCsv(true)">All matching assets as CSV</button>
+            <button mat-menu-item (click)="exportCsv(false)"><mat-icon>description</mat-icon>This page as CSV</button>
+            <button mat-menu-item (click)="exportCsv(true)"><mat-icon>dataset</mat-icon>All matching assets as CSV</button>
           </mat-menu>
           @if (auth.canWrite()) {
             <a mat-flat-button routerLink="/assets/new"><mat-icon>add</mat-icon> New asset</a>
           }
         </div>
-      </div>
-      <div class="toolbar-row">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      </header>
+
+      <div class="filters compact-fields">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
           <mat-label>Search</mat-label>
+          <mat-icon matPrefix aria-hidden="true">search</mat-icon>
           <input
             matInput
             #searchBox
             [formControl]="search"
-            placeholder="name, tag, serial, manufacturer, model"
+            placeholder="Name, tag, serial, manufacturer, model"
             autocomplete="off"
             (keydown.escape)="search.setValue('')"
           />
           @if (search.value) {
             <button matSuffix mat-icon-button aria-label="Clear search" (click)="search.setValue('')"><mat-icon>close</mat-icon></button>
           } @else {
-            <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+            <kbd matSuffix class="hide-sm" aria-hidden="true">/</kbd>
           }
         </mat-form-field>
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -120,85 +124,156 @@ import { Notify } from '../../core/ui/notify';
       </div>
 
       @let r = result();
-      @if (r.loading && !r.data) {
-        <app-loading />
-      } @else if (r.error) {
-        <app-error-state message="Assets could not be loaded." [retry]="reload" />
-      } @else if (r.data && r.data.totalItems === 0) {
-        <app-empty icon="inventory_2" [message]="hasFilter() ? 'No assets match these filters.' : 'No assets yet.'">
+      <div class="card table-card" [class.refreshing]="r.loading && !!r.data">
+        @if (r.loading && !r.data) {
+          <app-loading variant="table" [count]="6" label="Loading assets" />
+        } @else if (r.error) {
+          <app-error-state message="Assets could not be loaded." [retry]="reload" />
+        } @else if (r.data && r.data.totalItems === 0) {
           @if (hasFilter()) {
-            <button mat-stroked-button (click)="clearFilters()">Clear filters</button>
-          } @else if (auth.canWrite()) {
-            <a mat-stroked-button routerLink="/assets/new">Add your first asset</a>
+            <app-empty icon="search_off" heading="Nothing found" message="No assets match these filters.">
+              <button mat-stroked-button (click)="clearFilters()">Clear filters</button>
+            </app-empty>
+          } @else {
+            <app-empty
+              icon="inventory_2"
+              heading="No assets yet"
+              message="Add the things you own and AssetCare reminds you when they need care."
+            >
+              @if (auth.canWrite()) {
+                <a mat-flat-button routerLink="/assets/new"><mat-icon>add</mat-icon> Add your first asset</a>
+              }
+            </app-empty>
           }
-        </app-empty>
-      } @else if (r.data) {
-        <table
-          mat-table
-          [dataSource]="r.data.items"
-          matSort
-          [matSortActive]="sortField()"
-          [matSortDirection]="sortDir()"
-          (matSortChange)="onSort($event)"
-          aria-label="Assets"
-        >
-          <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
-            <td mat-cell *matCellDef="let a">
-              <strong>{{ a.name }}</strong>
-              <div class="muted">{{ a.manufacturer }} {{ a.model }}</div>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="assetTag">
-            <th mat-header-cell *matHeaderCellDef class="hide-sm">Tag</th>
-            <td mat-cell *matCellDef="let a" class="hide-sm">{{ a.assetTag ?? '—' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="category">
-            <th mat-header-cell *matHeaderCellDef class="hide-sm">Category</th>
-            <td mat-cell *matCellDef="let a" class="hide-sm">{{ a.category.name }}</td>
-          </ng-container>
-          <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef>Status</th>
-            <td mat-cell *matCellDef="let a">
-              <span [class]="statusClass(a.status)">{{ a.status }}</span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="warrantyUntil">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-sm">Warranty until</th>
-            <td mat-cell *matCellDef="let a" class="hide-sm">{{ a.warrantyUntil ? (a.warrantyUntil | date: 'mediumDate') : '—' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="purchasePrice">
-            <th mat-header-cell *matHeaderCellDef class="hide-sm">Price</th>
-            <td mat-cell *matCellDef="let a" class="hide-sm">
-              {{ a.purchasePrice !== null ? (a.purchasePrice | currency: a.currency ?? 'CHF') : '—' }}
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="updatedAt">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>Updated</th>
-            <td mat-cell *matCellDef="let a">{{ a.updatedAt | date: 'mediumDate' }}</td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="columns"></tr>
-          <tr
-            mat-row
-            *matRowDef="let a; columns: columns"
-            class="row-link"
-            tabindex="0"
-            role="link"
-            [attr.aria-label]="'Open ' + a.name"
-            (click)="open(a)"
-            (keydown.enter)="open(a)"
-          ></tr>
-        </table>
-        <mat-paginator
-          [length]="r.data.totalItems"
-          [pageIndex]="page()"
-          [pageSize]="size()"
-          [pageSizeOptions]="[10, 20, 50]"
-          (page)="onPage($event)"
-          aria-label="Pages"
-        />
-      }
+        } @else if (r.data) {
+          <div class="table-scroll">
+            <table
+              mat-table
+              [dataSource]="r.data.items"
+              matSort
+              [matSortActive]="sortField()"
+              [matSortDirection]="sortDir()"
+              (matSortChange)="onSort($event)"
+              aria-label="Assets"
+            >
+              <ng-container matColumnDef="name">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
+                <td mat-cell *matCellDef="let a">
+                  <div class="cell-main">
+                    <span class="tile-icon neutral"
+                      ><mat-icon aria-hidden="true">{{ categoryIcon(a.category.code) }}</mat-icon></span
+                    >
+                    <div>
+                      <strong>{{ a.name }}</strong>
+                      @if (a.manufacturer || a.model) {
+                        <div class="sub">{{ a.manufacturer }} {{ a.model }}</div>
+                      }
+                    </div>
+                  </div>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="assetTag">
+                <th mat-header-cell *matHeaderCellDef class="hide-sm">Tag</th>
+                <td mat-cell *matCellDef="let a" class="hide-sm">
+                  @if (a.assetTag) {
+                    <span class="mono muted">{{ a.assetTag }}</span>
+                  } @else {
+                    <span class="faint">—</span>
+                  }
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="category">
+                <th mat-header-cell *matHeaderCellDef class="hide-sm">Category</th>
+                <td mat-cell *matCellDef="let a" class="hide-sm muted">{{ a.category.name }}</td>
+              </ng-container>
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <td mat-cell *matCellDef="let a">
+                  <span [class]="statusClass(a.status)">{{ statusLabel(a.status) }}</span>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="warrantyUntil">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-sm">Warranty</th>
+                <td mat-cell *matCellDef="let a" class="hide-sm muted num">
+                  {{ a.warrantyUntil ? (a.warrantyUntil | date: 'mediumDate') : '—' }}
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="purchasePrice">
+                <th mat-header-cell *matHeaderCellDef class="hide-sm right">Price</th>
+                <td mat-cell *matCellDef="let a" class="hide-sm right num">
+                  {{ a.purchasePrice !== null ? (a.purchasePrice | currency: a.currency ?? 'CHF') : '—' }}
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="updatedAt">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Updated</th>
+                <td mat-cell *matCellDef="let a" class="muted" [title]="a.updatedAt | date: 'medium'">{{ relativeTime(a.updatedAt) }}</td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="columns"></tr>
+              <tr
+                mat-row
+                *matRowDef="let a; columns: columns"
+                class="row-link"
+                tabindex="0"
+                role="link"
+                [attr.aria-label]="'Open ' + a.name"
+                (click)="open(a)"
+                (keydown.enter)="open(a)"
+              ></tr>
+            </table>
+          </div>
+          <mat-paginator
+            [length]="r.data.totalItems"
+            [pageIndex]="page()"
+            [pageSize]="size()"
+            [pageSizeOptions]="[10, 20, 50]"
+            (page)="onPage($event)"
+            aria-label="Pages"
+          />
+        }
+      </div>
     </div>
+  `,
+  styles: `
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .filters mat-form-field {
+      flex: 1 1 180px;
+      max-width: 240px;
+    }
+    .filters .search {
+      flex: 2 1 280px;
+      max-width: none;
+    }
+    .filters .mat-icon[matPrefix] {
+      margin: 0 4px 0 10px;
+      color: var(--ac-text-3);
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+    .filters kbd {
+      margin-right: 10px;
+    }
+    .table-card {
+      transition: opacity 0.2s;
+    }
+    @media (max-width: 720px) {
+      .filters mat-form-field {
+        flex: 1 1 140px;
+        max-width: none;
+      }
+      .filters .search {
+        flex-basis: 100%;
+      }
+    }
+    .table-card.refreshing {
+      opacity: 0.6;
+    }
   `,
 })
 export class AssetList {
@@ -213,6 +288,9 @@ export class AssetList {
 
   readonly columns = ['name', 'assetTag', 'category', 'status', 'warrantyUntil', 'purchasePrice', 'updatedAt'];
   readonly statusClass = statusClass;
+  readonly statusLabel = statusLabel;
+  readonly categoryIcon = categoryIcon;
+  readonly relativeTime = relativeTime;
 
   readonly search = new FormControl(this.route.snapshot.queryParamMap.get('q') ?? '', { nonNullable: true });
   private readonly searchValue = toSignal(
