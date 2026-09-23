@@ -28,6 +28,9 @@
 	</scm>
 	<properties>
 		<java.version>25</java.version>
+		<!-- CVE-2026-65182, CVE-2026-65905, CVE-2026-68525 (critical) are fixed in Tomcat 11.0.25; Spring Boot 4.1.1
+		     manages 11.0.24. Remove this override once the parent version manages 11.0.25 or later. -->
+		<tomcat.version>11.0.26</tomcat.version>
 	</properties>
 	<dependencies>
 		<dependency>
