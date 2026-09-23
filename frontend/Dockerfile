@@ -10,7 +10,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY . .
 RUN npm run build -- --configuration production
 
-FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS runtime
 LABEL org.opencontainers.image.title="assetcare-frontend" \
       org.opencontainers.image.source="https://github.com/Janaka2/spring-angular-production-blueprint" \
       org.opencontainers.image.licenses="Apache-2.0"
