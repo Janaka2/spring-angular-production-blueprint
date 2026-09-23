@@ -1,0 +1,11 @@
+#cloud-config
+# Rendered by main.tf. Creates the admin user the setup guide expects and disables root and password logins.
+users:
+  - name: ubuntu
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+disable_root: true
+ssh_pwauth: false

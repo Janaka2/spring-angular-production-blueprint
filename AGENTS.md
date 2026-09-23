@@ -4,7 +4,7 @@ Read this before changing anything. It is short on purpose; the documents it lin
 
 ## What this is
 A production-ready reference application: Angular 22 SPA, Spring Boot 4.1 API on Java 25, PostgreSQL 18 with Liquibase,
-Keycloak OIDC, OpenTelemetry, Helm chart for K3s on OCI. Domain: people own assets that need maintenance.
+Keycloak OIDC, OpenTelemetry, Helm chart for K3s on a Hetzner CX33 (ADR-012). Domain: people own assets that need maintenance.
 Start with `README.md`, then `docs/architecture/ARCHITECTURE.md` and `docs/DEFINITION-OF-DONE.md`.
 
 ## Non-negotiable rules

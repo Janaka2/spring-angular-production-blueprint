@@ -73,7 +73,8 @@ disallowed content types are 4xx by design (`assetcare.attachments.*`).
 ### Certificate not issued
 
 `kubectl -n assetcare describe certificaterequest`, then `describe order` and `describe challenge`. Usual causes: DNS
-does not resolve to the VM yet, port 80 blocked by the OCI security list or iptables, rate limit (use staging).
+does not resolve to the VM yet, port 80 blocked by the Hetzner cloud firewall `assetcare-web` (or on OCI the
+security list or iptables), rate limit (use staging).
 
 ## Procedures
 
@@ -99,7 +100,8 @@ it in PostgreSQL and in the Secret in the same window.
 
 ### Disaster: the VM is gone
 
-1. Create a VM (`infra/oci`), run `deploy/k3s/install.sh`, apply the cluster issuer.
+1. Create a VM (`infra/hetzner`: `terraform apply`; or restore a Hetzner server backup into a new server), run
+   `deploy/k3s/install.sh`, apply the cluster issuer, point DNS at the new IP.
 2. Install the chart with the same values and secrets (they are in your vault, not in Git).
 3. Restore the latest dump from Object Storage (`BACKUP-RESTORE.md`); attachments come back from the object storage
    bucket if `externalObjectStorage` was used, otherwise they are lost with the VM (documented in PRODUCTION-GAPS).

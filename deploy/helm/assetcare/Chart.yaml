@@ -1,6 +1,6 @@
 apiVersion: v2
 name: assetcare
-description: AssetCare - Angular SPA, Spring Boot API, PostgreSQL, Keycloak and MinIO on any Kubernetes. Reference deployment for K3s on OCI.
+description: AssetCare - Angular SPA, Spring Boot API, PostgreSQL, Keycloak and MinIO on any Kubernetes. Reference deployment for K3s on a Hetzner CX33.
 type: application
 version: 1.0.0
 appVersion: "1.0.0"

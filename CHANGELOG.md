@@ -4,6 +4,17 @@ All notable changes to AssetCare. The format follows [Keep a Changelog](https://
 project uses [semantic versioning](https://semver.org/): a breaking API or schema contract is a major version, a feature
 a minor one, a fix a patch.
 
+## [Unreleased]
+
+### Changed
+- The production trial moves from an OCI Always Free ARM VM to one Hetzner Cloud CX33 (ADR-012, superseding ADR-004):
+  `infra/hetzner` Terraform with a cloud firewall, cloud-init `ubuntu` user and server backups; `ENVIRONMENT-SETUP.md`
+  P4 to P7 rewritten; CI validates both Terraform configurations.
+
+### Fixed
+- `deploy/k3s/install.sh` inserted iptables rules at position 6, which fails on images whose INPUT chain is shorter
+  (Hetzner's Ubuntu); it now opens 80/443 only when the host firewall rejects them.
+
 ## [1.0.0] - 2026-09-23
 
 The first release: a complete asset-maintenance application and the template it is meant to be, from the domain model to

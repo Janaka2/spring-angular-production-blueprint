@@ -3,7 +3,7 @@
 **What is this?** A complete, working asset-maintenance manager (AssetCare) built the way a serious application is
 built inside a bank, an insurer or a large company: one Angular 22 SPA, one Spring Boot 4.1 service on Java 25,
 PostgreSQL 18 with Liquibase, Keycloak for identity, OpenTelemetry observability, tests at every level, multi-arch
-containers, a Helm chart, GitHub Actions, and a free Kubernetes deployment on Oracle Cloud.
+containers, a Helm chart, GitHub Actions, and a Kubernetes deployment on one small Hetzner Cloud server (CX33).
 
 **Why does it exist?** So that you do not spend your first two weeks on a new project figuring out logging,
 authentication, migrations, Docker, Kubernetes, monitoring, testing and CI/CD. Clone it, run it, read why each piece is
@@ -99,8 +99,9 @@ make e2e                # Playwright against the running stack
 
 ## How do I deploy it?
 
-See `docs/operations/DEPLOYMENT.md` (Helm on any Kubernetes) and `docs/operations/OCI-FREE-TIER.md` (K3s on an OCI
-Always Free ARM VM with TLS from Let's Encrypt). `make helm-lint` and `make helm-template` validate the chart.
+See `docs/ENVIRONMENT-SETUP.md` steps P1 to P14 (K3s on one Hetzner Cloud CX33 created by `infra/hetzner`, TLS from
+Let's Encrypt; ADR-012) and `docs/operations/DEPLOYMENT.md` (Helm on any Kubernetes). The earlier OCI Always Free path
+stays documented in `docs/operations/OCI-FREE-TIER.md`. `make helm-lint` and `make helm-template` validate the chart.
 
 ## How do I monitor it?
 
@@ -150,6 +151,7 @@ Helm lint + template, core values                   PASS   every third-party ima
 Trivy fs (dependencies, config) and both images     PASS   after the Tomcat 11.0.26 override; no fixable critical CVE
 gitleaks, full history                               PASS   one reviewed false positive allowlisted in .gitleaks.toml
 Terraform fmt + validate (infra/oci)                 PASS   after rewriting variables.tf, which was invalid
+Terraform fmt + validate (infra/hetzner)             PASS   2026-09-23, Terraform 1.16.3, hcloud 1.69.0; cloud-init renders
 actionlint (with shellcheck) on the three workflows  PASS
 Production frontend image, e2e + console, real CSP   PASS   7 of 7; zero CSP violations after two fixes (headers, critical CSS)
 Docker builds arm64, CodeQL, cosign, release         NOT EXECUTED; they run on GitHub (ci, security, release workflows)
@@ -178,7 +180,8 @@ Observability stack with real traffic               NOT EXECUTED; docker-compose
 Terraform validate (infra/oci)                      NOT EXECUTED locally; job helm
 
 Not executed anywhere yet:
-OCI VM + K3s installation, DNS, TLS issuance        NOT EXECUTED (no OCI tenancy in the build environment); documented step by step with a check per step
+Hetzner CX33 + K3s installation, DNS, TLS issuance  NOT EXECUTED yet; ENVIRONMENT-SETUP.md P4-P14, a check per step
+OCI VM + K3s installation (superseded, ADR-012)      NOT EXECUTED; attempts did not produce a working server
 Smoke test against a deployed instance              NOT EXECUTED; scripts/smoke-test.sh runs in the e2e job against localhost
 ```
 

@@ -74,8 +74,8 @@ the list of things the replacement must still do.
 | **Helm** | Package manager for Kubernetes: templates plus values | `deploy/helm/assetcare` | One command installs or upgrades everything; every environment difference is a value; `helm rollback` returns to the previous release. Without it: dozens of YAML files edited by hand per environment. |
 | **Traefik** (bundled with K3s) | Ingress controller: the front door that routes URLs to services | Routes `/` to the SPA, `/api` to the API, `/auth` to Keycloak; edge rate limiting | One public IP, one certificate, several services. |
 | **cert-manager + Let's Encrypt** | Requests and renews HTTPS certificates automatically | `ClusterIssuer`s in `deploy/k3s` | The padlock appears on its own and renews a month early, forever, for free. Without it: renewing certificates by hand every 90 days. |
-| **Terraform + OCI provider** | Describes cloud resources in files and creates them | `infra/oci`: the free ARM VM, network, firewall | Reproducible: the same server again in ten minutes, reviewed like code. Without it: clicking through the console and forgetting a firewall rule. |
-| **Oracle Cloud Always Free (A1.Flex)** | A free ARM server with 4 cores and 24 GB | Hosts the reference deployment | Real production experience at zero cost. |
+| **Terraform + hcloud provider** | Describes cloud resources in files and creates them | `infra/hetzner`: the CX33 server, SSH key, cloud firewall, backups (`infra/oci` keeps the earlier OCI version) | Reproducible: the same server again in ten minutes, reviewed like code. Without it: clicking through the console and forgetting a firewall rule. |
+| **Hetzner Cloud CX33** | A rented x86 server with 4 cores, 8 GB and 80 GB, billed by the hour with a small monthly cap | Hosts the production trial (ADR-012) | Real production experience for a few euros a month, available on demand, data in the EU. |
 | **kubectl** | Command-line client for Kubernetes | Every `kubectl` in the guides | Look at pods, logs, secrets; restart; port-forward to the dashboards. |
 
 ## 6. Quality, testing and security checks
@@ -143,8 +143,8 @@ flowchart TB
       TAG[tag vX.Y.Z] --> REL[Release: multi-arch images, SBOM, cosign, chart]
       REL --> GHCR[(GHCR)]
     end
-    subgraph prod [OCI free VM]
-      TF[Terraform] --> VM[Ubuntu ARM VM]
+    subgraph prod [Hetzner CX33]
+      TF[Terraform] --> VM[Ubuntu 24.04 VM]
       VM --> K3S[K3s + Traefik + cert-manager]
       HELM[Helm chart] --> K3S
       GHCR --> K3S

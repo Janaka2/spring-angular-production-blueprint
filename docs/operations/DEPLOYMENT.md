@@ -1,7 +1,8 @@
 # Deployment
 
 AssetCare ships as two OCI images and one Helm chart. The chart runs on any Kubernetes; the reference target is K3s on
-one Oracle Cloud Always Free VM (`OCI-FREE-TIER.md`). This page is the generic path; the enterprise variations are at
+one Hetzner Cloud CX33 (`ENVIRONMENT-SETUP.md` P4 to P14, `infra/hetzner`, ADR-012). The earlier OCI Always Free
+target is kept in `OCI-FREE-TIER.md`. This page is the generic path; the enterprise variations are at
 the end.
 
 ```mermaid
@@ -130,5 +131,5 @@ then only bumps `image.tag` in the environment values file.
 
 `helm lint` and `helm template` (core and enterprise value sets) were run against the chart in this repository and pass
 (see the verification report in `README.md`). The image builds run in `release.yml`. The cluster installation itself
-(`OCI-FREE-TIER.md`) is documented step by step but was **not executed** by the author's build environment, which has
-no Docker daemon and no OCI tenancy; each step says which command proves it worked.
+(`ENVIRONMENT-SETUP.md` P4 to P14 on Hetzner) is documented step by step but has **not been executed** yet; each step
+says which command proves it worked. `terraform validate` for `infra/hetzner` runs in CI.

@@ -30,5 +30,5 @@ updates:
     directory: /
     schedule: { interval: weekly }
   - package-ecosystem: terraform
-    directory: /infra/oci
+    directories: [/infra/hetzner, /infra/oci]
     schedule: { interval: monthly }

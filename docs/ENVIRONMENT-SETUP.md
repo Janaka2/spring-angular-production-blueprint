@@ -8,8 +8,8 @@ There are two tracks:
 
 - **Local** (steps L1 to L12): make AssetCare run on your own computer. This is where you learn and change things.
   About 45 minutes, most of it waiting for downloads.
-- **Production** (steps P1 to P14): put AssetCare on the internet for other people, on a free Oracle Cloud computer.
-  Do the Local track first. About two hours the first time.
+- **Production** (steps P1 to P14): put AssetCare on the internet for other people, on a small rented Hetzner Cloud
+  server (CX33, a few euros a month). Do the Local track first. About ninety minutes the first time.
 
 ## Before you start: five things to know
 
@@ -371,8 +371,16 @@ with `admin` / `admin`, and open Dashboards → AssetCare → "AssetCare overvie
 ## Production track
 
 You need: the Local track done, a domain name you own (for example `assetcare.example.com`, about 10 euros a year at
-any registrar), a GitHub account, and an Oracle Cloud account (free; it asks for a credit card to verify identity but
-the machine we use costs nothing). Every command below runs on your own computer unless it says "on the server".
+any registrar), a GitHub account, and a Hetzner Cloud account (a credit card or PayPal; new accounts are sometimes
+asked for an ID check, which can take up to a day, so open the account first). Every command below runs on your own
+computer unless it says "on the server".
+
+**What it costs.** One CX33 server (4 cores, 8 GB memory, 80 GB disk, 20 TB traffic a month), its IPv4 address and
+Hetzner's nightly server backups: together well under 10 euros a month. The exact current price is on
+https://www.hetzner.com/cloud under "Cost-Optimized". Hetzner bills by the hour up to that monthly cap, so a server you
+delete after a day costs cents. Why Hetzner and not the free Oracle computer this guide used before:
+`docs/adr/ADR-012-k3s-on-hetzner-cx33.md` (short version: a paid server you can always get beats a free one you
+often cannot).
 
 ### P1. Deployment tools
 
@@ -441,55 +449,60 @@ gh run watch
 `assetcare-api` and `assetcare-frontend`. Click each → "Package settings" → "Change visibility" → Public. (Private
 packages also work but need an extra secret in P10.)
 
-### P4. Oracle Cloud account and key
+### P4. Hetzner Cloud account and API token
 
-**What this is.** Creating the account and a key file so Terraform is allowed to create a server for you.
+**What this is.** Creating the account, a project to hold the server, and a token (a long password for programs)
+so Terraform is allowed to create a server for you.
 
 **Do this.**
-1. Sign up at https://www.oracle.com/cloud/free/. Choose a home region near you (for example Zurich or Frankfurt);
-   it cannot be changed later. Wait for the "account is ready" email (minutes to a day).
-2. Log in to the console. Top right, click the profile icon → your username. On that page: "API keys" → "Add API
-   key" → "Generate API key pair" → "Download private key" → save it. Click "Add".
-3. A box "Configuration file preview" appears. Copy its text. On your computer:
+1. Sign up at https://accounts.hetzner.com/signUp, confirm the email, add a payment method. If Hetzner asks for an ID
+   check, do it and wait for the "account activated" email before continuing.
+2. Open https://console.hetzner.com. Click "New project", name it `assetcare`, open it.
+3. In the project, left menu → Security → API tokens → "Generate API token". Description `terraform`, permission
+   **Read & Write**. Click "Generate API token" and copy the token now: Hetzner shows it only once. Put it in your
+   password manager.
+4. On your computer, make the token available to Terraform in this terminal window. The space at the start of the
+   line keeps it out of the shell history:
 
 ```bash
-mkdir -p ~/.oci
-mv ~/Downloads/*.pem ~/.oci/oci_api_key.pem
-nano ~/.oci/config          # paste the text; change the key_file line to: key_file=~/.oci/oci_api_key.pem ; Ctrl+O, Enter, Ctrl+X
-chmod 600 ~/.oci/config ~/.oci/oci_api_key.pem
+ export HCLOUD_TOKEN=paste-the-token-here
 ```
 
-4. In the console, top left menu → Identity & Security → Compartments. Click the root compartment (named after your
-   tenancy). Copy its OCID (a long text starting with `ocid1.`). Keep it for P5.
+Like `KUBECONFIG` later, this line must be typed again in every new terminal window you use for P5. The token is never
+written into a file in the project folder, so it cannot end up on GitHub.
 
-**Check.** `grep -c "ocid1" ~/.oci/config`
+**Check.** `curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" https://api.hetzner.cloud/v1/servers | jq '.servers | length'`
 
-**You should see.** `2` (a user id and a tenancy id).
+**You should see.** `0` (the project is empty so far).
+
+**If not.** `null` or `unauthorized`: the token was not copied completely, or it belongs to another project; generate
+a new one. `jq: command not found`: `brew install jq` or `sudo apt-get install -y jq`.
 
 ### P5. Create the server
 
-**What this is.** Terraform reads `infra/oci/main.tf` and creates one free ARM server with 4 cores and 24 GB, plus
-its network, plus a firewall that allows only SSH, HTTP and HTTPS.
+**What this is.** Terraform reads `infra/hetzner/main.tf` and creates one CX33 server (4 cores, 8 GB, Ubuntu 24.04)
+in a Hetzner data centre in Germany or Finland, plus a firewall that allows only SSH, HTTP and HTTPS, plus nightly
+backups of the whole server. It also creates the login user `ubuntu` and switches off logging in as `root`.
 
 **Do this.**
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/assetcare -N ""        # a key pair to log in to the server; press Enter if asked anything
-cd ~/spring-angular-production-blueprint/infra/oci
+cd ~/spring-angular-production-blueprint/infra/hetzner
 cp terraform.tfvars.example terraform.tfvars
 nano terraform.tfvars
 ```
 
-In that file: set `region` to your home region code (shown top right in the console, e.g. `eu-zurich-1`),
-`compartment_ocid` to the OCID from P4, `ssh_public_key_path` to `~/.ssh/assetcare.pub`, and `ssh_allowed_cidr` to
-your own public IP followed by `/32` (find it at https://ifconfig.me). Save (Ctrl+O, Enter, Ctrl+X). Then:
+In that file: set `location` to the data centre nearest to your users (`nbg1` Nuremberg, `fsn1` Falkenstein, `hel1`
+Helsinki), and in `ssh_allowed_cidrs` replace `203.0.113.4` with your own public IP (find it at https://ifconfig.me;
+keep the `/32`). Leave `ssh_public_key_path` as it is. Save (Ctrl+O, Enter, Ctrl+X). Then:
 
 ```bash
 terraform init
-terraform apply          # read the plan, type yes
+terraform apply          # read the plan: 3 to add (key, firewall, server); type yes
 ```
 
-**Check.**
+**Check.** Wait one minute after `Apply complete!` (the server is still setting up the `ubuntu` user), then:
 
 ```bash
 terraform output public_ip
@@ -498,12 +511,20 @@ ssh -i ~/.ssh/assetcare ubuntu@$(terraform output -raw public_ip) 'uname -m; npr
 
 Answer `yes` when SSH asks whether to trust the new server.
 
-**You should see.** An IP address, then `aarch64`, `4`, and a memory line showing about `23` total.
+**You should see.** An IP address, then `x86_64`, `4`, and a memory line showing about `7` total.
 
-**If not.** `Out of host capacity`: Oracle has no free ARM machines in that spot right now. Open
-`terraform.tfvars`, add the line `availability_domain_index = 1`, run `terraform apply` again; try `2` next; if all
-fail, try again in a few hours. This is the most common obstacle and it is not your fault.
-`401 NotAuthenticated`: the key or config from P4 is wrong; re-check the `key_file` path.
+**If not.**
+- An error with `unavailable` or `unsupported location` in it: Hetzner has no free CX33 in that data centre right
+  now. Change `location` in `terraform.tfvars` to one of the other two and run `terraform apply` again.
+- `unauthorized` or `unable to authenticate`: `HCLOUD_TOKEN` is not set in this window (P4 step 4), or the token is
+  read-only.
+- `Permission denied (publickey)` from ssh: wait another minute and retry; the `ubuntu` user appears only after the
+  server's first boot finishes. Still failing after five minutes: `terraform destroy`, then `terraform apply` again.
+- ssh hangs and then `timed out`: your public IP changed since you wrote it into `ssh_allowed_cidrs`. Put the new one
+  in and run `terraform apply` (it only updates the firewall).
+
+**Moving from Oracle Cloud?** If you created anything with `infra/oci` before, delete it so nothing is left behind:
+`cd ~/spring-angular-production-blueprint/infra/oci && terraform destroy`, answer `yes`.
 
 Write the IP down. Every later step calls it `<IP>`.
 
@@ -517,7 +538,7 @@ certificates) on the server.
 ```bash
 cd ~/spring-angular-production-blueprint
 scp -i ~/.ssh/assetcare deploy/k3s/install.sh ubuntu@<IP>:
-ssh -i ~/.ssh/assetcare ubuntu@<IP> 'sudo apt-get update -q && sudo apt-get -y -q dist-upgrade && bash install.sh'
+ssh -i ~/.ssh/assetcare ubuntu@<IP> 'sudo apt-get update -q && sudo DEBIAN_FRONTEND=noninteractive apt-get -y -q dist-upgrade && bash install.sh'
 ```
 
 This takes about five minutes. Then copy the "key to the cluster" to your computer so you can control it from here:
@@ -555,17 +576,19 @@ this window.
 
 ### P7. Check the doors are open
 
-**What this is.** Two firewalls protect the server (Oracle's and the server's own). Terraform and the installer
-opened doors 80 and 443 in both. This just checks.
+**What this is.** Hetzner's cloud firewall `assetcare-web` sits in front of the server and lets in only SSH (from
+your IP), HTTP and HTTPS. Terraform created it in P5; the server itself has no second firewall to open. This just
+checks.
 
 **Check.** `curl -sI http://<IP> | head -1`
 
 **You should see.** `HTTP/1.1 404 Not Found`. A 404 is correct here: the web server answers, it just has nothing at
 that address yet.
 
-**If not.** It hangs and then says `timed out`: in the Oracle console, Networking → Virtual cloud networks →
-`assetcare-vcn` → Security Lists → `assetcare-web`: there must be ingress rules for TCP 80 and 443 from `0.0.0.0/0`.
-Add them if missing.
+**If not.** It hangs and then says `timed out`: in the Hetzner console, your project → Firewalls → `assetcare-web`.
+It must show inbound rules for TCP 80 and 443 from anywhere (`0.0.0.0/0` and `::/0`), and under "Resources" the server
+`assetcare-k3s`. If something is missing, run `terraform apply` in `infra/hetzner` again rather than clicking it by
+hand. `Connection refused` instead of a timeout: the doors are open but K3s is not running; repeat P6.
 
 ### P8. Point your domain at the server
 
@@ -715,9 +738,10 @@ kubectl -n assetcare logs job/backup-now
 `docs/operations/OPERATIONS-GUIDE.md`: it explains, in the same plain style, how to check that everything is healthy,
 how to update to a new version, and what to do when something is wrong.
 
-**You are in production.** Congratulations. The whole setup is free while you stay within Oracle's free tier
-(the guide never leaves it), and everything you did is written in files, so you can do it again on a new server in an
-hour if this one disappears.
+**You are in production.** Congratulations. The monthly cost is the CX33, its IPv4 address and its backups, nothing
+else; the Hetzner console shows it under Billing. Everything you did is written in files, so you can do it again on a
+new server in an hour if this one disappears (`terraform destroy`, `terraform apply`, then P6 to P14 with the latest
+backup).
 
 ---
 
@@ -740,8 +764,9 @@ hour if this one disappears.
 | `ConnectException` from `OtlpHttpMetricsSender` | L9 | harmless without the L12 observability stack |
 | `libnspr4.so: cannot open shared object file` | L11 | `cd frontend && sudo npx playwright install-deps chromium` |
 | login page comes back after logging in | L10 | use exactly `http://localhost:4200` |
-| `Out of host capacity` | P5 | Oracle has no free ARM machine now; change `availability_domain_index`, retry later |
-| `NotAuthenticated` | P5 | the `~/.oci/config` from P4 is wrong |
+| `unavailable` / `unsupported location` | P5 | no CX33 free in that data centre; change `location` to `nbg1`, `fsn1` or `hel1` |
+| `unauthorized` / `unable to authenticate` | P4, P5 | `export HCLOUD_TOKEN=...` not done in this window, or the token is read-only |
+| `Permission denied (publickey)` | P5, P6 | wait a minute after `terraform apply`; log in as `ubuntu`, not `root` |
 | `refusing to allow an OAuth App to create or update workflow` | P2 | run the `gh auth refresh` line again |
 | `ImagePullBackOff` | P12 | packages are private; make them public (P3) |
 | `READY False` on the certificate | P12 | DNS (P8) or doors (P7); `kubectl -n assetcare describe challenge` |

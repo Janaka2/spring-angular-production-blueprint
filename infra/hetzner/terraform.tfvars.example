@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars (ignored by Git). The API token is NOT set here: export HCLOUD_TOKEN instead.
+location            = "nbg1"
+ssh_public_key_path = "~/.ssh/assetcare.pub"
+ssh_allowed_cidrs   = ["203.0.113.4/32"]
+backups             = true

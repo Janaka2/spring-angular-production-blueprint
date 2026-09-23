@@ -1,6 +1,6 @@
 # ADR-004: Kubernetes via K3s on an OCI Always Free ARM VM
 
-**Status:** accepted · **Date:** 2026-09-16
+**Status:** superseded by ADR-012 (2026-09-23) · **Date:** 2026-09-16
 
 ## Context
 
