@@ -69,6 +69,9 @@ Check: `df -h /` on the VM; PVCs live on the boot volume under `/var/lib/rancher
 
 Check: MinIO pod, `MINIO_ROOT_*` in the Secret, bucket exists (`assetcare-minio-init` Job). Files over 10 MB and
 disallowed content types are 4xx by design (`assetcare.attachments.*`).
+`NoSuchBucketException` in the API log means the bucket was never created: `assetcare-minio-init` is a post-install /
+post-upgrade hook, and Helm skips hooks when a release fails (`helm -n assetcare history assetcare` shows `failed` or
+`pending-upgrade`). Fix what made the release fail, upgrade again, or run the Job's `mc mb --ignore-existing` by hand.
 
 ### Certificate not issued
 
