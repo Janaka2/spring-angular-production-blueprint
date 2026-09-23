@@ -64,7 +64,8 @@ services:
       timeout: 3s
       retries: 20
 
-  # one-shot: create the attachments bucket, then exit
+  # creates the attachments bucket, then stays up and reports healthy. A container that exits races
+  # "docker compose up --wait": if it finishes before compose starts watching, --wait fails on "exited (0)".
   minio-init:
     image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     depends_on:
@@ -74,8 +75,14 @@ services:
       /bin/sh -c "
       mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-assetcare} ${MINIO_ROOT_PASSWORD:-assetcare-dev-password} &&
       mc mb --ignore-existing local/${MINIO_BUCKET:-assetcare-attachments} &&
-      echo 'bucket ready'
+      touch /tmp/bucket-ready && echo 'bucket ready' &&
+      exec sleep infinity
       "
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/bucket-ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
 
 volumes:
   postgres-data:
