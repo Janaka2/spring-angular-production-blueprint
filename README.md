@@ -1,5 +1,5 @@
 # AssetCare: a production-ready Angular + Spring Boot reference application
-
+![visitors](https://visitor-badge.laobi.icu/badge?page_id=AssetCare.visitor-badge)
 **What is this?** A complete, working asset-maintenance manager (AssetCare) built the way a serious application is
 built inside a bank, an insurer or a large company: one Angular 22 SPA, one Spring Boot 4.1 service on Java 25,
 PostgreSQL 18 with Liquibase, Keycloak for identity, OpenTelemetry observability, tests at every level, multi-arch
