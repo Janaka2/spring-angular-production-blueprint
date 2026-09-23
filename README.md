@@ -47,7 +47,7 @@ has been executed.
 | 4 Main course: Angular application | done (Playwright passes locally against the production image; runs in `ci`) |
 | 5 Side dishes: quality, security, reliability | done (SBOM, restore drill, Trivy and gitleaks pass locally; CodeQL runs only on GitHub) |
 | 6 Dessert: observability | done (stack starts with `make observability`) |
-| 7 Coffee: deployment, CI/CD, operations | chart, images and workflows done; first GitHub runs pending; OCI install documented, NOT EXECUTED |
+| 7 Coffee: deployment, CI/CD, operations | chart, images, ci and security workflows green on GitHub; first release pending; OCI install documented, NOT EXECUTED |
 | Academy article | done: [janaka.me/academy/production-ready-spring-angular](https://janaka.me/academy/production-ready-spring-angular/) (source: `docs/academy/ARTICLE.md`) |
 
 ## Look and feel
@@ -166,7 +166,7 @@ Helm template, enterprise values (external DB/IdP/  PASS   10 objects rendered, 
   object storage, existingSecret, HPA, ServiceMonitor)
 Version matrix                                      PASS   every version checked against its official source
 
-Delegated to GitHub Actions (.github/workflows: ci, security, release; first runs pending):
+GitHub Actions (.github/workflows): ci run 35845269250 and security run 35845269122 PASS on 2026-09-23; release not yet run. The lines below are the author's earlier record:
 Integration tests (Testcontainers, PostgreSQL 18)   NOT EXECUTED locally; job backend
 Backup → wipe → restore drill                       NOT EXECUTED locally; job backup-restore
 E2E (Playwright, real Keycloak + API + SPA)         NOT EXECUTED locally; job e2e
