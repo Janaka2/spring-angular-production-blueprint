@@ -41,7 +41,7 @@ Guides referenced: `ENVIRONMENT-SETUP.md` (L and P steps), `operations/OPERATION
 | 2.4 | Fix whatever the first runs find | runs green | **done**: local rehearsal found a critical Tomcat CVE, invalid Terraform, missing security headers and a CSP-blocked production build; the first GitHub run found a race in `docker compose up --wait` |
 | 2.5 | Protect `main`: require the `ci` jobs, require a PR | Settings → Branches | open |
 | 2.6 | Enable Dependabot alerts and let the first grouped PRs run through CI | PRs open and green | written |
-| 2.7 | Tag `v1.0.0`: multi-arch images, SBOM, cosign signature, chart package (P3) | `release` completed success; `cosign verify` passes; two packages on GHCR | written |
+| 2.7 | Tag `v1.0.0`: multi-arch images, SBOM, cosign signature, chart package (P3) | `release` completed success; `cosign verify` passes; two packages on GHCR | **done** (2026-09-23, run 35849250614: amd64 + arm64 images, SBOM, cosign signature and SBOM attestation verified, chart on the GitHub release; packages public) |
 
 ## Phase 3: prove it can be changed (the first modification, on purpose)
 

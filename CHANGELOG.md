@@ -55,8 +55,8 @@ signed multi-architecture images, a Helm chart and a documented path to a free K
 - New installations only: the schema is created by Liquibase changesets 001 to 007 and 100; the `dev` context adds
   demo data, the `prod` context does not. From this release on, schema changes are new changesets only.
 - Local databases created before commit `4ed09c4` must be recreated once: `docker compose down -v`.
-- Container packages on GHCR are private when first published; make them public, or give the cluster a pull secret
-  (`docs/ENVIRONMENT-SETUP.md`, P3 and P10).
+- The images are public on GHCR for this repository. In a fork, check the package visibility after the first release;
+  make it public or give the cluster a pull secret (`docs/ENVIRONMENT-SETUP.md`, P3 and P10).
 - Known gap: container root filesystems are writable (Trivy KSV-0014, reported in the Security tab); see
   `docs/PRODUCTION-GAPS.md`.
 
