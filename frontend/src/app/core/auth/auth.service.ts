@@ -48,6 +48,7 @@ export class AuthService {
     this.oauth.configure(authConfig);
     this.oauth.setupAutomaticSilentRefresh();
     await this.oauth.loadDiscoveryDocumentAndTryLogin();
+    this.removeIssuerParam();
     this.readUser();
     this.oauth.events.subscribe(() => this.readUser());
     this.ready.set(true);
@@ -70,6 +71,17 @@ export class AuthService {
   consumeReturnTo(): string | null {
     const state = this.oauth.state;
     return state ? decodeURIComponent(state) : null;
+  }
+
+  /**
+   * Keycloak 26 adds the RFC 9207 `iss` parameter to the login redirect. The library removes code and state but
+   * leaves `iss`, which the router would then carry to /dashboard. Runs before the first navigation.
+   */
+  private removeIssuerParam(): void {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('iss')) return;
+    url.searchParams.delete('iss');
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
   }
 
   private readUser(): void {
