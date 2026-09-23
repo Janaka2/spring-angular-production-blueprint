@@ -24,7 +24,7 @@ from files in this repository.
 
 Free-first / enterprise-ready check: the Helm chart, K3s and `deploy/k3s/install.sh` are unchanged, and the images are
 already multi-arch, so the move is a change of VM, not of architecture. `infra/oci` and `OCI-FREE-TIER.md` stay in the
-repository as a zero-cost alternative for whoever has A1 capacity.
+repository as a zero-cost alternative for whoever has A1 capacity. (Amended 2026-09-23: removed, see below.)
 
 ## Decision
 
@@ -46,6 +46,14 @@ from anywhere, and Hetzner server backups enabled. The API token lives only in t
 - Data stays in the EU (Germany or Finland), which suits a GDPR-minded trial.
 - Hetzner's object storage is not used; off-server copies of the nightly dump come from Hetzner server backups, or
   from `backup.s3Bucket` pointed at any S3-compatible bucket.
+
+## Amendment 2026-09-23: OCI material removed
+
+Keeping `infra/oci` and `docs/operations/OCI-FREE-TIER.md` as an alternative cost more than it gave: nobody runs or
+tests that path, CI and Dependabot still maintained it, and the page read like a supported route. Both are removed;
+`v1.0.0` and Git history keep them for anyone who wants to revive the path. ADR-004 remains as the record of why it
+existed. The chart, `install.sh` (which still handles images whose iptables reject 80/443) and the multi-arch images are
+provider-neutral, so an OCI VM still works by following P8 onwards on any Ubuntu VM.
 
 ## Revisit when
 

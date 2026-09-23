@@ -1,8 +1,7 @@
 # Deployment
 
 AssetCare ships as two OCI images and one Helm chart. The chart runs on any Kubernetes; the reference target is K3s on
-one Hetzner Cloud CX33 (`ENVIRONMENT-SETUP.md` P4 to P14, `infra/hetzner`, ADR-012). The earlier OCI Always Free
-target is kept in `OCI-FREE-TIER.md`. This page is the generic path; the enterprise variations are at
+one Hetzner Cloud CX33 (`ENVIRONMENT-SETUP.md` P4 to P14, `infra/hetzner`, ADR-012). This page is the generic path; the enterprise variations are at
 the end.
 
 ```mermaid

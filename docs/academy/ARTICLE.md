@@ -1,7 +1,7 @@
 # From CRUD to production: an Angular and Spring Boot application, served as a seven-course meal
 
 <!-- lede -->
-Most tutorials stop where the real work starts. This one starts there. AssetCare is a complete asset-maintenance manager, built in the open with Angular 22, Spring Boot 4.1 on Java 25, PostgreSQL 18, Keycloak, OpenTelemetry, Helm and GitHub Actions, and deployed for free on one Oracle Cloud ARM machine. Every course below says why the piece exists, what was built, how it was built, and what proves it works. Nothing is claimed that was not run; where something was not executed, it says so.
+Most tutorials stop where the real work starts. This one starts there. AssetCare is a complete asset-maintenance manager, built in the open with Angular 22, Spring Boot 4.1 on Java 25, PostgreSQL 18, Keycloak, OpenTelemetry, Helm and GitHub Actions, and deployed on one small Hetzner Cloud server. Every course below says why the piece exists, what was built, how it was built, and what proves it works. Nothing is claimed that was not run; where something was not executed, it says so.
 
 <!-- eyebrow: Before we sit down -->
 ## Why a reference application, and why a meal
@@ -20,7 +20,7 @@ It is served as a meal because the order matters. You do not plate the main cour
 | 4 | Main course | the Angular application |
 | 5 | Side dishes | tests at every level, scans, SBOM, load test, backup and restore |
 | 6 | Dessert | metrics, logs, traces, dashboards, alerts |
-| 7 | Coffee | images, Helm, K3s on OCI, TLS, CI/CD, runbook |
+| 7 | Coffee | images, Helm, K3s on a Hetzner CX33, TLS, CI/CD, runbook |
 
 > **Free first, enterprise ready.** Everything runs on free tiers and open source. Where an enterprise would swap a piece (Oracle for PostgreSQL, a corporate identity provider, a vault, managed Kubernetes), the seam is a documented value, not a rewrite. `docs/PRODUCTION-GAPS.md` lists every such seam honestly.
 
@@ -144,9 +144,9 @@ Content-Type: application/problem+json
 
 **Why.** A deployment that lives in one person's shell history is not a deployment. It has to be a file, a command and a rollback.
 
-**What.** Two [multi-arch, non-root images](https://github.com/Janaka2/spring-angular-production-blueprint/blob/main/backend/Dockerfile): the API on a JRE with container-aware heap and graceful shutdown, the SPA on unprivileged nginx with a Content-Security-Policy and a `config.json` rendered from the environment. A [Helm chart](https://github.com/Janaka2/spring-angular-production-blueprint/tree/main/deploy/helm/assetcare) with probes, resource limits, rolling updates that never drop below capacity, Traefik ingress, cert-manager TLS, a nightly backup CronJob, optional autoscaling, and switches for an external database, identity provider and object storage. Terraform for the [OCI Always Free VM](https://github.com/Janaka2/spring-angular-production-blueprint/tree/main/infra/oci), an installer for K3s, and three workflows: CI, security, release.
+**What.** Two [multi-arch, non-root images](https://github.com/Janaka2/spring-angular-production-blueprint/blob/main/backend/Dockerfile): the API on a JRE with container-aware heap and graceful shutdown, the SPA on unprivileged nginx with a Content-Security-Policy and a `config.json` rendered from the environment. A [Helm chart](https://github.com/Janaka2/spring-angular-production-blueprint/tree/main/deploy/helm/assetcare) with probes, resource limits, rolling updates that never drop below capacity, Traefik ingress, cert-manager TLS, a nightly backup CronJob, optional autoscaling, and switches for an external database, identity provider and object storage. Terraform for the [Hetzner CX33](https://github.com/Janaka2/spring-angular-production-blueprint/tree/main/infra/hetzner), an installer for K3s, and three workflows: CI, security, release.
 
-**How.** The chart's defaults are the free deployment; every enterprise substitution is a value. The release workflow builds for amd64 and arm64, scans the pushed image, signs it with cosign and attaches provenance. The [runbook](https://github.com/Janaka2/spring-angular-production-blueprint/blob/main/docs/operations/RUNBOOK.md) is written for the person on call: symptom, check, action, confirmation. The [OCI guide](https://github.com/Janaka2/spring-angular-production-blueprint/blob/main/docs/operations/OCI-FREE-TIER.md) says what each step costs beyond the free tier, which is nothing until you exceed 4 cores, 24 GB, 200 GB of disk or 10 TB of traffic.
+**How.** The chart's defaults are the free deployment; every enterprise substitution is a value. The release workflow builds for amd64 and arm64, scans the pushed image, signs it with cosign and attaches provenance. The [runbook](https://github.com/Janaka2/spring-angular-production-blueprint/blob/main/docs/operations/RUNBOOK.md) is written for the person on call: symptom, check, action, confirmation. The [setup guide](https://github.com/Janaka2/spring-angular-production-blueprint/blob/main/docs/ENVIRONMENT-SETUP.md) takes you from an empty Hetzner account to the running site, one checked step at a time; [ADR-012](https://github.com/Janaka2/spring-angular-production-blueprint/blob/main/docs/adr/ADR-012-k3s-on-hetzner-cx33.md) explains why a few euros a month beat a free VM that could not be created on demand.
 
 ```bash
 helm upgrade --install assetcare deploy/helm/assetcare -n assetcare --create-namespace \

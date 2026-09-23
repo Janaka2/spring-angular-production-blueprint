@@ -523,8 +523,9 @@ Answer `yes` when SSH asks whether to trust the new server.
 - ssh hangs and then `timed out`: your public IP changed since you wrote it into `ssh_allowed_cidrs`. Put the new one
   in and run `terraform apply` (it only updates the firewall).
 
-**Moving from Oracle Cloud?** If you created anything with `infra/oci` before, delete it so nothing is left behind:
-`cd ~/spring-angular-production-blueprint/infra/oci && terraform destroy`, answer `yes`.
+**Moving from Oracle Cloud?** An earlier version of this guide used an OCI VM. If you created one, delete it so nothing
+is left behind: `git checkout v1.0.0 -- infra/oci && terraform -chdir=infra/oci destroy` (answer `yes`), then
+`rm -rf infra/oci`; or terminate the instance and its network in the OCI console.
 
 Write the IP down. Every later step calls it `<IP>`.
 
