@@ -1,6 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AssetCare">
-  <rect width="64" height="64" rx="14" fill="#0b57d0"/>
-  <path d="M18 24h28v22a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z" fill="#fff" opacity=".95"/>
-  <path d="M16 18h32l-3 8H19z" fill="#d3e3fd"/>
-  <rect x="27" y="32" width="10" height="4" rx="2" fill="#0b57d0"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset=".55" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#d946ef"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#g)"/>
+  <rect x="14" y="16" width="36" height="10" rx="3" fill="#fff"/>
+  <path d="M17 28.5h30V43a5 5 0 0 1-5 5H22a5 5 0 0 1-5-5z" fill="#fff" fill-opacity=".92"/>
+  <rect x="26.5" y="33" width="11" height="4" rx="2" fill="#7c5cf5"/>
 </svg>

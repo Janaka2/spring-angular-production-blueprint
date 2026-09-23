@@ -50,6 +50,19 @@ has been executed.
 | 7 Coffee: deployment, CI/CD, operations | chart linted and rendered, images build locally; CI/CD workflows missing; OCI install documented, NOT EXECUTED |
 | Academy article | done: [janaka.me/academy/production-ready-spring-angular](https://janaka.me/academy/production-ready-spring-angular/) (source: `docs/academy/ARTICLE.md`) |
 
+## Look and feel
+
+A calm, minimal interface in the style of current product tools: a sidebar with a **⌘K / Ctrl K command menu** (jump
+to any page, run an action, find an asset by name, tag or serial), Inter and Material Symbols, status pills, skeleton
+loading instead of spinners, an agenda-style dashboard, and a first-class dark mode. It works at phone width and passes
+the accessibility lint rules.
+
+It is built to be reused. Every colour, radius, shadow and font is a token in `frontend/src/styles.scss`, and Angular
+Material components read those tokens, so a project started from this template rebrands by editing the first block of
+that file and `frontend/public/icons/icon.svg`. The reusable building blocks are in `frontend/src/app/shared/`:
+`state.ts` (skeleton, empty, error), `format.ts` (labels, tones, dates) and the global `.card`, `.pill`, `.tile-icon`,
+`.row` and `.fields` classes.
+
 ## How do I run it?
 
 Requirements: Java 25, Node 24, Docker with Compose v2. `make doctor` checks. Never done this before? `docs/ENVIRONMENT-SETUP.md` starts from
