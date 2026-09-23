@@ -16,6 +16,7 @@ insurer or large company would put in its place, and the application code does n
 | Object storage | MinIO in a pod (or OCI Object Storage free 20 GB) | Managed object storage with lifecycle rules, versioning and cross-region replication |
 | Observability | Prometheus, Loki, Tempo, Grafana in pods with days of retention | Central observability platform, long retention, SLO tooling, on-call paging integration |
 | Backups | CronJob `pg_dump` to a volume, optional upload to Object Storage; restore tested by script | Managed backups with PITR, tested DR runbooks, off-region copies, retention governed by policy |
+| Container hardening | API, frontend and backup run as non-root with all capabilities dropped; root filesystems are writable (Trivy KSV-0014, reported in the Security tab) | Read-only root filesystems with `emptyDir` for `/tmp` and caches, verified on the cluster; admission policies (Kyverno, Gatekeeper) that reject pods without them |
 | CI/CD | GitHub Actions building, scanning and pushing images; deployment by `helm upgrade` over SSH | GitOps (Argo CD), signed images verified at admission, environment promotion with approvals |
 | Supply chain | Trivy, CodeQL, dependency and secret scanning, CycloneDX SBOM | The same plus an artifact repository with policy, admission control on signatures, SLSA provenance |
 | Network | Flat cluster network | Network policies, service mesh where justified, egress control |

@@ -18,7 +18,7 @@ flowchart LR
 | Image | Base | User | Ports | Built by |
 |---|---|---|---|---|
 | `assetcare-api` | `eclipse-temurin:25-jre` (multi-stage from `eclipse-temurin:25-jdk`) | uid 10001 | 8080 | `backend/Dockerfile` |
-| `assetcare-frontend` | `nginxinc/nginx-unprivileged:1.29-alpine` (built on `node:24.21.0-alpine3.24`) | uid 101 | 8080 | `frontend/Dockerfile` |
+| `assetcare-frontend` | `nginxinc/nginx-unprivileged:1.31-alpine` (built on `node:26.8-alpine3.24`) | uid 101 | 8080 | `frontend/Dockerfile` |
 
 Both are built for `linux/amd64` and `linux/arm64` by `.github/workflows/release.yml` on every `v*` tag, scanned with
 Trivy, given a CycloneDX SBOM and signed with cosign (keyless, GitHub OIDC). Tags are the version and the commit SHA;

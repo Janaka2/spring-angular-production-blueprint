@@ -1,0 +1,236 @@
+# Continuous integration: every push to main and every pull request runs every test, drill and build.
+# The jobs are independent so a failure points at one place; "e2e" and "backup-restore" start the real stack
+# (PostgreSQL, Keycloak, MinIO from docker-compose.yml, the API as a jar, the SPA as its production nginx image).
+# Branch protection on main should require all six jobs (docs/PATH-TO-PRODUCTION.md, 2.5).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: '25'
+  NODE_VERSION: '24'
+
+jobs:
+  backend:
+    name: backend (unit, ArchUnit, Testcontainers)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Unit, architecture and integration tests, SBOM
+        working-directory: backend
+        run: ./mvnw -B --no-transfer-progress verify
+      - name: Test reports
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-test-reports
+          path: backend/target/*-reports/
+          retention-days: 7
+      - name: SBOM
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-sbom
+          path: backend/target/classes/META-INF/sbom/application.cdx.json
+          retention-days: 30
+
+  frontend:
+    name: frontend (lint, format, unit, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npx prettier --check "src/**/*.{ts,html,scss}" "e2e/**/*.ts"
+      - run: npm test -- --watch=false
+      - run: npx ng build --configuration production
+
+  e2e:
+    name: e2e (Playwright, real Keycloak + API + SPA)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Start PostgreSQL, Keycloak and MinIO
+        run: |
+          cp .env.example .env
+          docker compose up -d --wait
+      - name: Build and start the API
+        run: |
+          (cd backend && ./mvnw -B -q --no-transfer-progress -DskipTests package)
+          nohup java -jar "$(find backend/target -maxdepth 1 -name 'assetcare-api-*.jar' | head -1)" > api.log 2>&1 &
+          for _ in $(seq 1 90); do curl -fs http://localhost:8080/actuator/health/readiness && break; sleep 2; done
+          curl -fs http://localhost:8080/actuator/health/readiness
+      - name: Smoke test the API (the same script used against a deployment)
+        run: scripts/smoke-test.sh http://localhost:8080
+      - name: Build and start the SPA from its production image
+        # the production build behind nginx with the real CSP, not the dev server: a policy violation or a
+        # production-only build difference fails here instead of in front of users
+        run: |
+          docker build -t assetcare-frontend:e2e frontend
+          docker run -d --name spa -p 4200:8080 -e API_URL=http://localhost:8080 \
+            -e OIDC_ISSUER=http://localhost:8081/realms/assetcare -e OIDC_CLIENT_ID=assetcare-spa assetcare-frontend:e2e
+          for _ in $(seq 1 30); do curl -fs http://localhost:4200/config.json > /dev/null && break; sleep 1; done
+          curl -fs http://localhost:4200/config.json
+      - name: Playwright
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - name: Playwright report and service logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            api.log
+          retention-days: 7
+
+  backup-restore:
+    name: backup-restore drill
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+      - name: Start the stack and let the API migrate and load demo data
+        run: |
+          cp .env.example .env
+          docker compose up -d --wait
+          (cd backend && ./mvnw -B -q --no-transfer-progress -DskipTests package)
+          nohup java -jar "$(find backend/target -maxdepth 1 -name 'assetcare-api-*.jar' | head -1)" > api.log 2>&1 &
+          for _ in $(seq 1 90); do curl -fs http://localhost:8080/actuator/health/readiness && break; sleep 2; done
+          curl -fs http://localhost:8080/actuator/health/readiness
+      - name: Backup, damage, restore, compare
+        run: |
+          counts() {
+            docker compose exec -T postgres psql -U assetcare -d assetcare -tA -c \
+              "select (select count(*) from databasechangelog)||' '||(select count(*) from asset)||' '||(select count(*) from category)||' '||(select count(*) from maintenance_item)||' '||(select count(*) from audit_event)"
+          }
+          before=$(counts); echo "before:  $before"
+          scripts/backup.sh
+          docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U assetcare -d assetcare -qc \
+            "update asset set name = 'DAMAGED'; update category set name = 'DAMAGED'"
+          test "$(docker compose exec -T postgres psql -U assetcare -d assetcare -tAc "select count(*) from asset where name = 'DAMAGED'")" != "0"
+          scripts/restore.sh
+          after=$(counts); echo "after:   $after"
+          test "$before" = "$after"
+          test "$(docker compose exec -T postgres psql -U assetcare -d assetcare -tAc "select (select count(*) from asset where name = 'DAMAGED') + (select count(*) from category where name = 'DAMAGED')")" = "0"
+          echo "restore drill passed: changelog and row counts match, damage undone"
+      - name: API log
+        if: failure()
+        run: tail -200 api.log
+
+  helm:
+    name: helm, terraform, compose
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+      - name: Lint and render the chart
+        run: |
+          helm lint deploy/helm/assetcare
+          helm template assetcare deploy/helm/assetcare > rendered.yaml
+          if grep -nE 'image: .*:latest' rendered.yaml; then echo '::error::an image uses the latest tag'; exit 1; fi
+          echo "$(grep -c '^kind:' rendered.yaml) objects rendered"
+      - name: Observability compose file is valid
+        run: docker compose -f docker-compose.observability.yml config -q
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+      - name: Terraform format and validate (no cloud access needed)
+        working-directory: infra/oci
+        run: |
+          terraform fmt -check -diff
+          terraform init -backend=false -input=false
+          terraform validate
+
+  images:
+    name: images (build, config render, Trivy)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the API image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: backend
+          load: true
+          tags: assetcare-api:ci
+          cache-from: type=gha,scope=api-amd64
+          cache-to: type=gha,scope=api-amd64,mode=max
+      - name: Build the frontend image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: frontend
+          load: true
+          tags: assetcare-frontend:ci
+          cache-from: type=gha,scope=frontend-amd64
+          cache-to: type=gha,scope=frontend-amd64,mode=max
+      - name: Images run as non-root; the frontend renders its runtime config and CSP
+        run: |
+          test "$(docker inspect assetcare-api:ci --format '{{.Config.User}}')" = "10001:10001"
+          test "$(docker inspect assetcare-frontend:ci --format '{{.Config.User}}')" = "101"
+          docker run -d --name web -p 18080:8080 \
+            -e API_URL=https://assetcare.example.com -e OIDC_ISSUER=https://assetcare.example.com/auth/realms/assetcare \
+            -e OIDC_CLIENT_ID=assetcare-spa assetcare-frontend:ci
+          for _ in $(seq 1 20); do curl -fs http://localhost:18080/config.json && break; sleep 1; done
+          curl -fs http://localhost:18080/config.json | grep -q '"apiUrl": "https://assetcare.example.com"'
+          curl -fsI http://localhost:18080/assets/some-deep-link | grep -qi '^content-security-policy:.*connect-src .*https://assetcare.example.com'
+          echo "config.json and CSP rendered from the environment; deep links served"
+      - name: Trivy, API image (fails on fixable critical)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: assetcare-api:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Trivy, frontend image (fails on fixable critical)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: assetcare-frontend:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'

@@ -43,11 +43,11 @@ has been executed.
 |---|---|
 | 1 Mise en place: architecture, domain, standards, environment | done |
 | 2 Starter: PostgreSQL schema and migrations | done |
-| 3 Soup: Spring Boot service | done (integration tests pass locally, 2026-09-23; CI workflows not in the repository yet) |
-| 4 Main course: Angular application | done (Playwright end-to-end suite passes locally, 2026-09-23) |
-| 5 Side dishes: quality, security, reliability | done (SBOM and the restore drill pass locally; security scans NOT EXECUTED, no workflows yet) |
+| 3 Soup: Spring Boot service | done (integration tests pass locally and run in `ci`) |
+| 4 Main course: Angular application | done (Playwright passes locally against the production image; runs in `ci`) |
+| 5 Side dishes: quality, security, reliability | done (SBOM, restore drill, Trivy and gitleaks pass locally; CodeQL runs only on GitHub) |
 | 6 Dessert: observability | done (stack starts with `make observability`) |
-| 7 Coffee: deployment, CI/CD, operations | chart linted and rendered, images build locally; CI/CD workflows missing; OCI install documented, NOT EXECUTED |
+| 7 Coffee: deployment, CI/CD, operations | chart, images and workflows done; first GitHub runs pending; OCI install documented, NOT EXECUTED |
 | Academy article | done: [janaka.me/academy/production-ready-spring-angular](https://janaka.me/academy/production-ready-spring-angular/) (source: `docs/academy/ARTICLE.md`) |
 
 ## Look and feel
@@ -147,7 +147,12 @@ Docker builds, local platform (amd64)               PASS   api 652 MB as uid 100
 API image with production settings                  PASS   prod Liquibase context, no demo data, S3 storage,
                                                            HSTS behind TLS, 409 on duplicate tag
 Helm lint + template, core values                   PASS   every third-party image checked pullable (arm64 incl.)
-Docker builds arm64, Trivy, CodeQL, gitleaks        NOT EXECUTED; no workflows exist yet (see below)
+Trivy fs (dependencies, config) and both images     PASS   after the Tomcat 11.0.26 override; no fixable critical CVE
+gitleaks, full history                               PASS   one reviewed false positive allowlisted in .gitleaks.toml
+Terraform fmt + validate (infra/oci)                 PASS   after rewriting variables.tf, which was invalid
+actionlint (with shellcheck) on the three workflows  PASS
+Production frontend image, e2e + console, real CSP   PASS   7 of 7; zero CSP violations after two fixes (headers, critical CSS)
+Docker builds arm64, CodeQL, cosign, release         NOT EXECUTED; they run on GitHub (ci, security, release workflows)
 
 Executed by the author (2026-09-16, macOS, no Docker daemon available):
 Backend compile (Java 25, Spring Boot 4.1.1)        PASS   ./mvnw compile
@@ -161,7 +166,7 @@ Helm template, enterprise values (external DB/IdP/  PASS   10 objects rendered, 
   object storage, existingSecret, HPA, ServiceMonitor)
 Version matrix                                      PASS   every version checked against its official source
 
-Delegated to GitHub Actions (the workflows are not in the repository yet: no ci/pipeline branch exists, locally or on GitHub):
+Delegated to GitHub Actions (.github/workflows: ci, security, release; first runs pending):
 Integration tests (Testcontainers, PostgreSQL 18)   NOT EXECUTED locally; job backend
 Backup → wipe → restore drill                       NOT EXECUTED locally; job backup-restore
 E2E (Playwright, real Keycloak + API + SPA)         NOT EXECUTED locally; job e2e

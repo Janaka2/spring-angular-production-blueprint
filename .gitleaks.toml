@@ -1,0 +1,10 @@
+# gitleaks configuration: the full default rule set, plus the few reviewed false positives below.
+# Development credentials are allowed only where CLAUDE.md rule 8 puts them (.env.example, the dev realm export), and
+# those use "-dev-password" values that the default rules do not flag. Add an entry here only with a reason.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Liquibase changeset ids such as 007-idempotency-key are names, not keys"
+regexTarget = "match"
+regexes = ['''idempotency-key''']

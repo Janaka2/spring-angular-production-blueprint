@@ -15,6 +15,13 @@ updates:
     groups:
       angular: { patterns: ["@angular/*", "@angular-devkit/*", "angular-eslint", "typescript"] }
       tooling: { patterns: ["eslint*", "prettier", "vitest", "@playwright/*", "@types/*"] }
+    ignore:
+      # Angular 22.1 (compiler-cli, build) accepts typescript >=6.0 <6.1 and vitest ^4. A group PR that moves
+      # either breaks the build or the test runner; lift these when Angular 22.2 is stable.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: vitest
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
   - package-ecosystem: docker
     directories: [/backend, /frontend]

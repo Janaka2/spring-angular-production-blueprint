@@ -35,10 +35,10 @@ Guides referenced: `ENVIRONMENT-SETUP.md` (L and P steps), `operations/OPERATION
 
 | # | Activity | Proof | Status |
 |---|---|---|---|
-| 2.1 | Grant the `workflow` scope and push the workflows (P2) | `gh auth status` shows `workflow`; `.github/workflows/*` on `main` | **open: blocks everything below** (`gh auth refresh -h github.com -s workflow`, then merge `ci/pipeline`) |
-| 2.2 | First green `ci` run: Testcontainers ITs, ArchUnit, Playwright, restore drill, Helm, Terraform validate, image builds, Trivy | `gh run list` shows `ci` completed success | written |
-| 2.3 | First green `security` run: CodeQL, Trivy fs, gitleaks, dependency review | Security tab shows results, no critical | written |
-| 2.4 | Fix whatever the first runs find (expect a few: nothing here has run against Docker yet) | runs green | open |
+| 2.1 | Push the workflows (P2): `ci.yml`, `security.yml`, `release.yml` | `.github/workflows/*` on `main` | **done** (2026-09-23; actionlint clean, each job's commands rehearsed locally) |
+| 2.2 | First green `ci` run: Testcontainers ITs, ArchUnit, Playwright, restore drill, Helm, Terraform validate, image builds, Trivy | `gh run list` shows `ci` completed success | written; first run on GitHub pending |
+| 2.3 | First green `security` run: CodeQL, Trivy fs, gitleaks, dependency review | Security tab shows results, no critical | written; Trivy fs and gitleaks clean locally, CodeQL runs only on GitHub |
+| 2.4 | Fix whatever the first runs find | runs green | partly done: the local rehearsal already found and fixed a critical Tomcat CVE, invalid Terraform, missing security headers on every page, and a production build blocked by the CSP |
 | 2.5 | Protect `main`: require the `ci` jobs, require a PR | Settings → Branches | open |
 | 2.6 | Enable Dependabot alerts and let the first grouped PRs run through CI | PRs open and green | written |
 | 2.7 | Tag `v1.0.0`: multi-arch images, SBOM, cosign signature, chart package (P3) | `release` completed success; `cosign verify` passes; two packages on GHCR | written |
@@ -60,7 +60,7 @@ Do one small change end to end before you need to do a real one under pressure.
 
 | # | Activity | Proof | Status |
 |---|---|---|---|
-| 4.1 | Tools, Oracle account, API key (P1, P4) | `terraform validate` ok **(done)**; `~/.oci/config` valid | tools done; account open |
+| 4.1 | Tools, Oracle account, API key (P1, P4) | `terraform validate` ok; `~/.oci/config` valid | tools done, `terraform validate` passes since 2026-09-23 (it did not before: `variables.tf` was invalid); account open |
 | 4.2 | Create the VM (P5) | `ssh` shows `aarch64`, 4 cores, 23 GB | written (Terraform not executed) |
 | 4.3 | K3s, Helm, cert-manager (P6); firewall (P7) | node Ready; `curl http://<ip>` 404 | written |
 | 4.4 | DNS and issuers (P8, P9) | `dig` returns the IP; issuers Ready | open |
