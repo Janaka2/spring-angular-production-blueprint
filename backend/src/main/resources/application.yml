@@ -91,9 +91,16 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  otlp:
+    metrics:
+      export:
+        enabled: false             # Prometheus scrapes /actuator/prometheus; no collector has an OTLP metrics pipeline
   tracing:
     sampling:
       probability: ${ASSETCARE_TRACE_SAMPLING:1.0}
+    export:
+      otlp:
+        enabled: ${ASSETCARE_OTLP_TRACES_ENABLED:false}   # opt-in: only when a collector listens (Helm, make observability)
   opentelemetry:
     tracing:
       export:
