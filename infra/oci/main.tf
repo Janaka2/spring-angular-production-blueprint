@@ -82,17 +82,17 @@ resource "oci_core_instance" "k3s" {
   display_name        = "assetcare-k3s"
   shape               = "VM.Standard.A1.Flex"
   shape_config {
-    ocpus         = var.ocpus          # free: up to 4 in total across your A1 instances
-    memory_in_gbs = var.memory_gb      # free: up to 24 in total
+    ocpus         = var.ocpus     # free: up to 4 in total across your A1 instances
+    memory_in_gbs = var.memory_gb # free: up to 24 in total
   }
   source_details {
     source_type             = "image"
     source_id               = data.oci_core_images.ubuntu_arm.images[0].id
-    boot_volume_size_in_gbs = var.boot_volume_gb   # free: 200 GB total block storage
+    boot_volume_size_in_gbs = var.boot_volume_gb # free: 200 GB total block storage
   }
   create_vnic_details {
     subnet_id        = oci_core_subnet.public.id
-    assign_public_ip = true             # ephemeral public IP: free. A reserved IP is also free (one per tenancy).
+    assign_public_ip = true # ephemeral public IP: free. A reserved IP is also free (one per tenancy).
     hostname_label   = "k3s"
   }
   metadata = {
