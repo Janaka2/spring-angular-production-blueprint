@@ -101,6 +101,27 @@ Update the Secret (`kubectl -n assetcare create secret ... --dry-run=client -o y
 `kubectl -n assetcare rollout restart deploy/assetcare-api` (pods read the Secret at start). Database password: change
 it in PostgreSQL and in the Secret in the same window.
 
+### Demo data
+
+The public demo account `demo` / `AssetCare-Demo-2026` (USER only, no account-console roles, so visitors cannot change
+its password) owns the showcase data. The Keycloak login page shows these credentials (realm `displayNameHtml`).
+`scripts/seed-demo.sh` loads `scripts/demo-data/showcase.json` through the API; it is safe to re-run and skips existing
+`DEMO-` tags. It logs in with the confidential client `assetcare-seed` (password grant). Its secret and every account
+password are in the Secret `assetcare-demo-accounts`, not in Git:
+`kubectl -n assetcare get secret assetcare-demo-accounts -o jsonpath='{.data.admin}' | base64 -d`.
+
+The realm export in `deploy/helm/assetcare/realm/` still contains the development users and their passwords. Keycloak
+imports it only when the realm does not exist yet, so after a fresh install (for example after "Disaster: the VM is
+gone"), rotate those passwords again before the site is public.
+
+### Reset the demo data
+
+Visitors can change or archive demo assets. Archived tags stay taken, so seeding cannot simply start again. Give the
+account a fresh identity instead; the old data stays in the database, archived and owned by the retired user (ADR-010).
+In the Keycloak admin console (realm assetcare): rename user `demo` to `demo-retired-<date>` and disable it, create
+`demo` again (email verified, first and last name set, role USER, `default-roles-assetcare` removed) with the password
+from the Secret, then run `scripts/seed-demo.sh`.
+
 ### Disaster: the VM is gone
 
 1. Create a VM (`infra/hetzner`: `terraform apply`; or restore a Hetzner server backup into a new server), run

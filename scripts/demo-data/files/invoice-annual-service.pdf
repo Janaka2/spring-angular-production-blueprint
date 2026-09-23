@@ -1,0 +1,43 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 891 >>
+stream
+BT /F1 18 Tf 60 780 Td (Invoice - Garage Meier AG, Baar (sample)) Tj ET
+BT /F1 11 Tf 60 745 Td (SAMPLE DOCUMENT - demo data, not a real receipt) Tj ET
+BT /F1 11 Tf 60 727 Td () Tj ET
+BT /F1 11 Tf 60 709 Td (Vehicle: VW Golf 8 Variant, ZG 48 213) Tj ET
+BT /F1 11 Tf 60 691 Td (Annual service as per manufacturer schedule) Tj ET
+BT /F1 11 Tf 60 673 Td (  Engine oil 0W-20, 4.3 l, filter              CHF 189.60) Tj ET
+BT /F1 11 Tf 60 655 Td (  Brake fluid replacement                      CHF  94.00) Tj ET
+BT /F1 11 Tf 60 637 Td (  Cabin air filter                             CHF  48.80) Tj ET
+BT /F1 11 Tf 60 619 Td (  Labour 1.5 h                                 CHF 180.00) Tj ET
+BT /F1 11 Tf 60 601 Td (Total incl. VAT                                CHF 512.40) Tj ET
+BT /F1 11 Tf 60 583 Td () Tj ET
+BT /F1 11 Tf 60 565 Td (Note: front brake pads at 40 %, replace at next service.) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001183 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1253
+%%EOF
