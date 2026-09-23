@@ -63,6 +63,14 @@ that file and `frontend/public/icons/icon.svg`. The reusable building blocks are
 `state.ts` (skeleton, empty, error), `format.ts` (labels, tones, dates) and the global `.card`, `.pill`, `.tile-icon`,
 `.row` and `.fields` classes.
 
+## Try the live demo
+
+https://assetcare.janaka.me: sign in as **`demo`** / **`AssetCare-Demo-2026`**. This is a deliberately public, shared
+account (USER role only) holding the Keller household's showcase data: 15 assets across every category and status,
+overdue and upcoming maintenance, service history and attachments. Other visitors see the same data and can change it.
+The data is loaded through the API by `scripts/seed-demo.sh` from `scripts/demo-data/showcase.json`; RUNBOOK
+"Demo data" explains how to seed and reset it.
+
 ## How do I run it?
 
 Requirements: Java 25, Node 24, Docker with Compose v2. `make doctor` checks. Never done this before? `docs/ENVIRONMENT-SETUP.md` starts from

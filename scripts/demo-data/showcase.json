@@ -1,0 +1,214 @@
+{
+  "_comment": [
+    "Showcase data for the public demo account, loaded through the API by scripts/seed-demo.sh.",
+    "Persona: the Keller household and home office in Zug. Every date is an offset in days from the day the script runs",
+    "(negative = in the past), so 'overdue', 'due soon' and 'warranty ending' stay true whenever the data is seeded.",
+    "Recurring items with 'completions' are completed through the API in order; each completion creates a service",
+    "record and the API schedules the next occurrence from the previous due date. Asset tags must start with DEMO-:",
+    "the script skips tags that already exist and --reset archives only DEMO- assets."
+  ],
+  "assets": [
+    {
+      "tag": "DEMO-LAPTOP-01", "category": "COMPUTER", "name": "MacBook Pro 14\"",
+      "description": "Main work laptop for the home office. 36 GB RAM, 1 TB SSD, space black.",
+      "manufacturer": "Apple", "model": "MacBook Pro 14 (M4 Pro, 2024)", "serial": "C02FK4Q9MD6T",
+      "purchase": -320, "price": "2699.00", "currency": "CHF", "warranty": 45,
+      "location": "Home office, desk", "notes": "AppleCare+ not purchased. Recovery key in the password manager.",
+      "maintenance": [
+        { "type": "INSPECTION", "description": "Battery health check (cycle count, capacity)", "due": -6,
+          "notes": "System Settings > Battery > Battery Health. Replace below 80 % capacity." },
+        { "type": "OTHER", "description": "Decide on extended warranty before it ends", "due": 30,
+          "notes": "Compare AppleCare+ with the insurer's electronics cover." }
+      ],
+      "attachments": [ "receipt-macbook-pro.pdf" ]
+    },
+    {
+      "tag": "DEMO-NAS-01", "category": "COMPUTER", "name": "Home server (NAS)",
+      "description": "Synology NAS with 4 x 8 TB in SHR-1. Photo library, Time Machine and document archive.",
+      "manufacturer": "Synology", "model": "DS923+", "serial": "22B0PDN384102",
+      "purchase": -540, "price": "1149.00", "currency": "CHF", "warranty": 555,
+      "location": "Utility room, network rack",
+      "maintenance": [
+        { "type": "INSPECTION", "description": "Disk health check and SMART test", "due": -172, "recurrence": "P3M",
+          "notes": "Storage Manager > HDD/SSD > Health Info. Run an extended SMART test on each drive.",
+          "completions": [
+            { "performedOn": -171, "performedBy": "Mara Keller", "summary": "All four drives healthy, extended SMART tests passed" },
+            { "performedOn": -80, "performedBy": "Mara Keller", "summary": "Drive 3 shows 8 reallocated sectors; monitoring",
+              "notes": "Not critical yet. Ordered a spare drive to keep on the shelf." }
+          ] },
+        { "type": "REPLACEMENT", "description": "Replace drive 3 (reallocated sectors growing)", "due": 120,
+          "cost": "239.00", "currency": "CHF", "notes": "Spare WD Red Plus 8 TB is in the cupboard." }
+      ],
+      "serviceRecords": [
+        { "performedOn": -80, "performedBy": "Mara Keller", "summary": "Bought spare 8 TB drive",
+          "cost": "239.00", "currency": "CHF" }
+      ]
+    },
+    {
+      "tag": "DEMO-PHONE-01", "category": "PHONE", "name": "iPhone 16",
+      "description": "Mara's phone. 256 GB, teal.",
+      "manufacturer": "Apple", "model": "iPhone 16", "serial": "F2LZK9QXN7",
+      "purchase": -345, "price": "979.00", "currency": "CHF", "warranty": 20,
+      "location": "Carried daily", "notes": "Screen protector and case fitted on day one.",
+      "attachments": [ "warranty-iphone-16.pdf" ]
+    },
+    {
+      "tag": "DEMO-WATCH-01", "category": "PHONE", "name": "Running watch",
+      "description": "Old GPS running watch, replaced by the phone.",
+      "manufacturer": "Garmin", "model": "Forerunner 245", "serial": "3YH204811",
+      "purchase": -2150, "price": "299.00", "currency": "CHF", "warranty": -1420,
+      "location": "Drawer, hallway", "notes": "Battery lasts about two days now. Kept as a spare.",
+      "status": "RETIRED"
+    },
+    {
+      "tag": "DEMO-CAR-01", "category": "VEHICLE", "name": "Family car",
+      "description": "VW Golf Variant, petrol, 5 seats. Used for commuting to Zurich and weekend trips.",
+      "manufacturer": "Volkswagen", "model": "Golf 8 Variant 1.5 eTSI", "serial": "WVWZZZCDZNW041275",
+      "purchase": -1290, "price": "31900.00", "currency": "CHF", "warranty": -195,
+      "location": "Garage, space 14", "notes": "Winter tyres stored at the garage. Licence plate ZG 48 213.",
+      "maintenance": [
+        { "type": "SERVICE", "description": "Annual service", "due": -355, "recurrence": "P1Y",
+          "cost": "480.00", "currency": "CHF", "serviceProvider": "Garage Meier AG, Baar",
+          "completions": [
+            { "performedOn": -352, "performedBy": "Garage Meier AG", "summary": "Annual service: oil and filter, brake fluid, cabin filter",
+              "cost": "512.40", "currency": "CHF", "notes": "Front brake pads at 40 %, replace at next service." }
+          ] },
+        { "type": "REPLACEMENT", "description": "Change to winter tyres", "due": 25, "recurrence": "P6M",
+          "cost": "95.00", "currency": "CHF", "serviceProvider": "Garage Meier AG, Baar",
+          "notes": "O bis O: October to Easter. Book early, slots go fast." },
+        { "type": "INSPECTION", "description": "MFK vehicle inspection (Strassenverkehrsamt Zug)", "due": 200,
+          "notes": "The invitation letter arrives about two months before." }
+      ],
+      "serviceRecords": [
+        { "performedOn": -140, "performedBy": "Carglass Zug", "summary": "Windscreen chip repaired",
+          "cost": "0.00", "currency": "CHF", "notes": "Covered by partial-cover insurance." }
+      ],
+      "attachments": [ "invoice-annual-service.pdf" ]
+    },
+    {
+      "tag": "DEMO-EBIKE-01", "category": "VEHICLE", "name": "E-bike",
+      "description": "Speed pedelec (45 km/h) for the commute. Yellow licence plate.",
+      "manufacturer": "Stromer", "model": "ST3 Pinion", "serial": "ST3-24-118472",
+      "purchase": -610, "price": "7490.00", "currency": "CHF", "warranty": 120,
+      "location": "At the dealer", "notes": "Motor error E-042 since last week. Dealer is checking under warranty.",
+      "status": "IN_REPAIR",
+      "maintenance": [
+        { "type": "SERVICE", "description": "Annual e-bike service", "due": -245, "recurrence": "P1Y",
+          "cost": "189.00", "currency": "CHF", "serviceProvider": "Velo Zug",
+          "completions": [
+            { "performedOn": -240, "performedBy": "Velo Zug", "summary": "Service: chain, brake pads, firmware update",
+              "cost": "214.00", "currency": "CHF" }
+          ] }
+      ],
+      "serviceRecords": [
+        { "performedOn": -5, "performedBy": "Velo Zug", "summary": "Dropped off: motor error E-042, warranty claim opened",
+          "notes": "Claim number WZ-2291. Loan bike provided." }
+      ]
+    },
+    {
+      "tag": "DEMO-BOILER-01", "category": "APPLIANCE", "name": "Gas boiler",
+      "description": "Wall-mounted condensing gas boiler for heating and hot water.",
+      "manufacturer": "Vaillant", "model": "ecoTEC plus VC 206/5-5", "serial": "21184300100248",
+      "purchase": -2280, "location": "Cellar",
+      "notes": "Installer: Haustech Baar. Pressure should be 1.2 to 1.8 bar.",
+      "maintenance": [
+        { "type": "SERVICE", "description": "Annual boiler service", "due": -377, "recurrence": "P1Y",
+          "cost": "290.00", "currency": "CHF", "serviceProvider": "Haustech Baar GmbH",
+          "completions": [
+            { "performedOn": -375, "performedBy": "Haustech Baar GmbH", "summary": "Annual service, burner cleaned, emissions within limits",
+              "cost": "305.00", "currency": "CHF" }
+          ] },
+        { "type": "INSPECTION", "description": "Chimney sweep and emissions measurement", "due": 40, "recurrence": "P1Y",
+          "serviceProvider": "Kaminfeger Zug", "notes": "Required by the canton. They send a date by letter." }
+      ],
+      "attachments": [ "boiler-service-report.pdf" ]
+    },
+    {
+      "tag": "DEMO-WASHER-01", "category": "APPLIANCE", "name": "Washing machine",
+      "description": "Front loader, 9 kg, with automatic detergent dosing.",
+      "manufacturer": "Miele", "model": "WWD 320 WPS", "serial": "000/173204815",
+      "purchase": -880, "price": "1790.00", "currency": "CHF", "warranty": 215,
+      "location": "Laundry room",
+      "maintenance": [
+        { "type": "CLEANING", "description": "Clean detergent drawer and drain filter", "due": -58, "recurrence": "P1M",
+          "completions": [
+            { "performedOn": -57, "performedBy": "Jonas Keller", "summary": "Drawer and drain filter cleaned" },
+            { "performedOn": -26, "performedBy": "Mara Keller", "summary": "Drain filter cleaned, found a coin and a hair clip" }
+          ] },
+        { "type": "CLEANING", "description": "Hygiene programme at 90 °C with descaler", "due": 70, "recurrence": "P6M" }
+      ]
+    },
+    {
+      "tag": "DEMO-DISHWASHER-01", "category": "APPLIANCE", "name": "Dishwasher",
+      "description": "Integrated dishwasher, 60 cm.",
+      "manufacturer": "V-ZUG", "model": "AdoraDish V6000", "serial": "4103200197",
+      "purchase": -1460, "price": "2450.00", "currency": "CHF", "warranty": -365,
+      "location": "Kitchen",
+      "maintenance": [
+        { "type": "CLEANING", "description": "Clean filters and spray arms", "due": 9, "recurrence": "P3M" },
+        { "type": "REPLACEMENT", "description": "Replace door seal", "due": -30,
+          "notes": "Cancelled: the seal was fine after cleaning.", "cancel": true }
+      ]
+    },
+    {
+      "tag": "DEMO-CAMERA-01", "category": "EQUIPMENT", "name": "Camera body",
+      "description": "Full-frame mirrorless camera for family photos and travel.",
+      "manufacturer": "Sony", "model": "Alpha 7 IV", "serial": "5048213",
+      "purchase": -800, "price": "2399.00", "currency": "CHF", "warranty": -70,
+      "location": "Living room, camera bag",
+      "maintenance": [
+        { "type": "CLEANING", "description": "Sensor cleaning", "due": 52,
+          "cost": "60.00", "currency": "CHF", "serviceProvider": "Foto Video Zumstein, Zug" }
+      ],
+      "attachments": [ "camera-care-notes.txt", "camera-label.png" ]
+    },
+    {
+      "tag": "DEMO-DRILL-01", "category": "EQUIPMENT", "name": "Cordless drill",
+      "description": "18 V drill driver with two batteries.",
+      "manufacturer": "Bosch Professional", "model": "GSR 18V-55", "serial": "3601JH1A00-821",
+      "purchase": -1100, "price": "219.00", "currency": "CHF", "warranty": 0,
+      "location": "Cellar, tool wall", "notes": "Bosch Professional warranty is 3 years after online registration.",
+      "maintenance": [
+        { "type": "REPLACEMENT", "description": "Replace worn 2.0 Ah battery", "due": 18,
+          "cost": "69.00", "currency": "CHF" }
+      ]
+    },
+    {
+      "tag": "DEMO-DESK-01", "category": "FURNITURE", "name": "Standing desk",
+      "description": "Electric height-adjustable desk, 160 x 80 cm, oak top.",
+      "manufacturer": "Flexispot", "model": "E7 Pro", "serial": "E7P-2308-66410",
+      "purchase": -400, "price": "689.00", "currency": "CHF", "warranty": 1425,
+      "location": "Home office",
+      "maintenance": [
+        { "type": "INSPECTION", "description": "Tighten frame screws and check cable tray", "due": 150, "recurrence": "P1Y" }
+      ]
+    },
+    {
+      "tag": "DEMO-CHAIR-01", "category": "FURNITURE", "name": "Office chair",
+      "description": "Ergonomic office chair, size B.",
+      "manufacturer": "Herman Miller", "model": "Aeron Remastered", "serial": "AER1B23-7741",
+      "purchase": -400, "price": "1590.00", "currency": "CHF", "warranty": 3980,
+      "location": "Home office", "notes": "12-year warranty. Keep the receipt."
+    },
+    {
+      "tag": "DEMO-SMOKE-01", "category": "OTHER", "name": "Smoke detectors (5)",
+      "description": "Battery smoke detectors: hallway, living room, two bedrooms, office.",
+      "manufacturer": "Ei Electronics", "model": "Ei650", "purchase": -1500,
+      "location": "Whole flat", "notes": "Sealed 10-year battery; replace the units, not the batteries.",
+      "maintenance": [
+        { "type": "INSPECTION", "description": "Press test button on every detector", "due": -310, "recurrence": "P1Y",
+          "completions": [
+            { "performedOn": -309, "performedBy": "Jonas Keller", "summary": "All five detectors beep; office unit was dusty, cleaned" }
+          ] }
+      ]
+    },
+    {
+      "tag": "DEMO-PRINTER-01", "category": "COMPUTER", "name": "Inkjet printer",
+      "description": "Old inkjet. Replaced by the print shop down the road.",
+      "manufacturer": "Canon", "model": "PIXMA TS5150", "serial": "KMGF81244",
+      "purchase": -2600, "price": "89.00", "currency": "CHF", "warranty": -1870,
+      "location": "Given to recycling", "notes": "Taken to the recycling centre.",
+      "archived": true
+    }
+  ]
+}

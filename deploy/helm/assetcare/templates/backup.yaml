@@ -1,3 +1,27 @@
+{{- define "assetcare.backupPod" -}}
+spec:
+  restartPolicy: OnFailure
+  securityContext: { runAsNonRoot: true, runAsUser: 70, fsGroup: 70, seccompProfile: { type: RuntimeDefault } }
+  containers:
+    - name: backup
+      image: {{ .Values.postgres.image }}
+      env:
+        - name: PGPASSWORD
+          valueFrom: { secretKeyRef: { name: {{ include "assetcare.apiSecret" . }}, key: POSTGRES_PASSWORD } }
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          set -eu
+          STAMP=$(date -u +%Y%m%d-%H%M%S); FILE=/backups/assetcare-$STAMP.sql.gz
+          pg_dump --no-owner --no-privileges -h {{ .Release.Name }}-postgres -U {{ .Values.postgres.username }} {{ .Values.postgres.database }} | gzip -9 > "$FILE"
+          sha256sum "$FILE" > "$FILE.sha256"
+          echo "backup written: $FILE ($(du -h "$FILE" | cut -f1))"
+          ls -1t /backups/assetcare-*.sql.gz | tail -n +{{ add .Values.backup.keep 1 }} | while read -r old; do rm -f "$old" "$old.sha256"; echo "removed $old"; done
+      volumeMounts: [{ name: backups, mountPath: /backups }]
+  volumes:
+    - name: backups
+      persistentVolumeClaim: { claimName: {{ .Release.Name }}-backups }
+{{- end }}
 {{- if and .Values.backup.enabled .Values.postgres.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -23,27 +47,19 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 2
-      template:
-        spec:
-          restartPolicy: OnFailure
-          securityContext: { runAsNonRoot: true, runAsUser: 70, fsGroup: 70, seccompProfile: { type: RuntimeDefault } }
-          containers:
-            - name: backup
-              image: {{ .Values.postgres.image }}
-              env:
-                - name: PGPASSWORD
-                  valueFrom: { secretKeyRef: { name: {{ include "assetcare.apiSecret" . }}, key: POSTGRES_PASSWORD } }
-              command: ["/bin/sh", "-c"]
-              args:
-                - |
-                  set -eu
-                  STAMP=$(date -u +%Y%m%d-%H%M%S); FILE=/backups/assetcare-$STAMP.sql.gz
-                  pg_dump --no-owner --no-privileges -h {{ .Release.Name }}-postgres -U {{ .Values.postgres.username }} {{ .Values.postgres.database }} | gzip -9 > "$FILE"
-                  sha256sum "$FILE" > "$FILE.sha256"
-                  echo "backup written: $FILE ($(du -h "$FILE" | cut -f1))"
-                  ls -1t /backups/assetcare-*.sql.gz | tail -n +{{ add .Values.backup.keep 1 }} | while read -r old; do rm -f "$old" "$old.sha256"; echo "removed $old"; done
-              volumeMounts: [{ name: backups, mountPath: /backups }]
-          volumes:
-            - name: backups
-              persistentVolumeClaim: { claimName: {{ .Release.Name }}-backups }
+      template: {{- include "assetcare.backupPod" . | nindent 8 }}
+---
+# One backup per install and upgrade: a safety copy before the change, and the backups volume's first consumer.
+# local-path binds a volume only when a pod uses it (WaitForFirstConsumer); without this Job the volume stays Pending
+# until the first nightly run, `helm --wait` times out, and the post-install hooks (bucket creation) never run.
+# Named per revision so each upgrade creates a new Job; Helm removes the previous one.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-backup-r{{ .Release.Revision }}
+  labels: {{- include "assetcare.component" (dict "root" . "component" "backup") | nindent 4 }}
+spec:
+  backoffLimit: 6                          # the database may still be starting on a fresh install
+  ttlSecondsAfterFinished: 604800
+  template: {{- include "assetcare.backupPod" . | nindent 4 }}
 {{- end }}

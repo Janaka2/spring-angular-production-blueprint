@@ -15,6 +15,7 @@ data:
   ASSETCARE_DEMO_DATA: "false"
   ASSETCARE_LIQUIBASE_CONTEXTS: prod
   SERVER_FORWARD_HEADERS_STRATEGY: framework
+  ASSETCARE_OTLP_TRACES_ENABLED: {{ .Values.observability.enabled | quote }}   # the collector exists only with the observability profile
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://{{ .Release.Name }}-otel-collector:4318/v1/traces"
   {{- range $k, $v := .Values.api.env }}
   {{ $k }}: {{ $v | quote }}

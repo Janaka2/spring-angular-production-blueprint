@@ -270,8 +270,7 @@ make backend
 The first time it downloads a lot (three minutes). It is ready when a line appears that contains
 `Started AssetcareApiApplication`, followed by `demo data loaded`. Leave this window open.
 
-While it runs you may see long `ConnectException` stack traces from `OtlpHttpMetricsSender` every minute. They are
-harmless: the API tries to send metrics to the observability stack of L12, which is not running yet.
+Trace export is off by default, so the API does not try to reach the observability stack of L12 (see L12 to turn it on).
 
 **Check.** Open a **second** terminal window, go to the project folder (`cd ~/spring-angular-production-blueprint`),
 then:
@@ -362,7 +361,8 @@ issues on GitHub, or open a new issue with the "Bug" template. Your setup is sti
 **What this is.** Dashboards that show what the application is doing: how many requests, how fast, any errors.
 
 **Do this.** `make observability`, then click around the app for a minute, then open http://localhost:3000, log in
-with `admin` / `admin`, and open Dashboards → AssetCare → "AssetCare overview".
+with `admin` / `admin`, and open Dashboards → AssetCare → "AssetCare overview". To also see traces in Tempo, stop the
+backend and start it again with `ASSETCARE_OTLP_TRACES_ENABLED=true make backend`.
 
 **You should see.** Graphs that move when you click in the app. Stop with `make observability-down`.
 
@@ -761,7 +761,7 @@ backup).
 | `Cannot connect to the Docker daemon` | L8+ | open Docker Desktop and wait for the whale to be still |
 | `Connection refused` on 8080 | L9 | the backend is not running or not finished starting |
 | `required a single bean, but 2 were found` / `Ambiguous @ExceptionHandler` | L9 | copy older than `c91e9cf`; `git pull` |
-| `ConnectException` from `OtlpHttpMetricsSender` | L9 | harmless without the L12 observability stack |
+| `ConnectException` from `OtlpHttpMetricsSender` or `Failed to export spans` | L9 | copy older than this fix, or `ASSETCARE_OTLP_TRACES_ENABLED=true` without `make observability`; `git pull` or unset it |
 | `libnspr4.so: cannot open shared object file` | L11 | `cd frontend && sudo npx playwright install-deps chromium` |
 | login page comes back after logging in | L10 | use exactly `http://localhost:4200` |
 | `unavailable` / `unsupported location` | P5 | no CX33 free in that data centre; change `location` to `nbg1`, `fsn1` or `hel1` |
