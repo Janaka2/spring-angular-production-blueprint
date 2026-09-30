@@ -13,7 +13,7 @@ Access is given on request, case by case:
 | Colleagues and teams who want to use it | A conversation about scope, credit and terms first |
 
 **How to ask:** send a short message through [janaka.me](https://janaka.me) or on
-[LinkedIn](https://www.linkedin.com/in/TODO-your-handle) <!-- TODO: your LinkedIn URL --> with your name, your GitHub username, and what you want to use it for.
+[LinkedIn](https://www.linkedin.com/in/janakapremathilaka/) with your name, your GitHub username, and what you want to use it for.
 
 Access is personal and does not transfer. Being given access does not grant a license to reuse the code; any use is
 agreed in writing.

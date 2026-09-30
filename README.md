@@ -136,7 +136,7 @@ Every check below was executed. Nothing is marked as passing that was not run.
 [Janaka Academy](https://janaka.me/academy/) course *From CRUD to Production*.
 
 - Website: [janaka.me](https://janaka.me)
-- LinkedIn: [TODO: your LinkedIn URL](https://www.linkedin.com/in/TODO-your-handle)
+- LinkedIn: [janakapremathilaka](https://www.linkedin.com/in/janakapremathilaka/)
 - Want the full source, a walkthrough, or to use AssetCare in your team? See [ACCESS.md](ACCESS.md).
 
 ---
