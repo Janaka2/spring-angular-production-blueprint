@@ -1,0 +1,39 @@
+AssetCare Showcase License (View Only)
+
+Copyright (c) 2026 Janaka Premathilaka. All rights reserved.
+
+This repository ("the Materials") contains documentation, diagrams, screenshots
+and selected source code excerpts from AssetCare, a private software project.
+The complete source code is not published.
+
+1. Permitted use. You may view and read the Materials, and you may link to this
+   repository or to individual files in it, for the purpose of evaluating the
+   author's work. GitHub's Terms of Service also allow you to view and fork this
+   repository on GitHub; a fork grants no further rights.
+
+2. Not permitted without prior written permission from the author:
+   a. copying, reproducing or redistributing the Materials, in whole or in part,
+      outside of GitHub's viewing and forking functions;
+   b. modifying the Materials or creating derivative works from them;
+   c. using the Materials, or code or designs derived from them, in any
+      software, product, service, course, training material or client work,
+      whether commercial or not;
+   d. presenting the Materials, or work substantially based on them, as your
+      own work, or removing or altering this notice or any copyright notice;
+   e. using the Materials to train or fine-tune machine-learning models.
+
+3. Quoting. Short quotations for commentary, review or discussion are allowed
+   when they credit "AssetCare by Janaka Premathilaka" and link to this
+   repository.
+
+4. Permission. To request access to the full source, or permission for any use
+   not listed in section 1, see ACCESS.md or contact the author at
+   https://janaka.me.
+
+5. No warranty. The Materials are provided "as is", without warranty of any
+   kind. The author is not liable for any claim or damage arising from them.
+
+Earlier releases of this project (up to and including v1.0.0) were published
+under the Apache License 2.0. Copies obtained under that license keep that
+license. It does not extend to the Materials in this repository or to any
+later version of AssetCare.
