@@ -24,9 +24,9 @@ Kubernetes deployment running in production today.
 (USER role) with showcase data: 15 assets in every category and status, overdue and upcoming maintenance, service
 history and attachments. Other visitors see the same data.
 
+<!-- TODO: restore when assets/screenshots/*.png are added
 ## Screenshots
 
-<!-- TODO: add the screenshots listed in assets/screenshots/README.md -->
 
 | Dashboard | Assets |
 |---|---|
@@ -35,6 +35,7 @@ history and attachments. Other visitors see the same data.
 | ![Asset detail](assets/screenshots/asset-detail.png) | ![Command menu](assets/screenshots/command-palette.png) |
 | **Dark mode** | **Phone** |
 | ![Dark mode](assets/screenshots/assets-dark.png) | ![Phone layout](assets/screenshots/mobile-dashboard.png) |
+-->
 
 ## What it does
 
